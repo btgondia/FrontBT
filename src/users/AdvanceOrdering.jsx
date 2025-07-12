@@ -813,7 +813,7 @@ function NewUserForm({ onSave, popupInfo, refreshDbC }) {
                       onChange={(e) =>
                         setdata({
                           ...data,
-                          counter_code: e.target.value,
+                          counter_code: e.target.value.replace(/\s/g, ""),
                         })
                       }
                     />
