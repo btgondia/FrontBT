@@ -835,6 +835,11 @@ function NewUserForm({
       return;
     }
 
+    if (!/^[0-9]{8}$/.test(obj.hsn)) {
+      setNotification({ success: true, message: "HSN Code should be of 8 digit" });
+      return;
+    }
+
     if (obj.img) {
       const previousFile = obj.img;
       new Compressor(obj.img, {
@@ -1436,7 +1441,7 @@ function NewUserForm({
                       <label className="selectLabel">
                         Product HSN
                         <input
-                          type="number"
+                          type="text"
                           name="one_pack"
                           className="numberInput"
                           value={data?.hsn}
@@ -1448,7 +1453,6 @@ function NewUserForm({
                               });
                           }}
                           maxLength={8}
-                          // disabled={true}
                         />
                       </label>
                       <label className="selectLabel" style={{ width: "100px" }}>
