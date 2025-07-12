@@ -56,7 +56,16 @@ const ItemsPage = () => {
         "Content-Type": "application/json",
       },
     });
-    if (response.data.success) setItemsData(response.data.result);
+    if (response.data.success)
+      setItemsData(
+        response.data.result.map((item) => ({
+          ...item,
+          hsn:
+            item?.hsn !== undefined && item?.hsn !== null
+              ? item.hsn.toString().padStart(8, "0")
+              : "",
+        }))
+      );
   };
   useEffect(() => {
     const controller = new AbortController();
@@ -769,6 +778,10 @@ function NewUserForm({
         conversion: "1",
         status: 1,
         ...popupInfo.data,
+        hsn:
+          popupInfo.data?.hsn !== undefined && popupInfo.data?.hsn !== null
+            ? popupInfo.data.hsn.toString().padStart(8, "0")
+            : "",
       });
     else if (popupInfo?.type === "price")
       setdata({
