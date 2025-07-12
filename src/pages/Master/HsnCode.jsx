@@ -13,8 +13,12 @@ const HSNCode = () => {
   const getUsers = async () => {
     const response = await axios.get("/hsn_code/getHSNCode");
     if (response?.data?.result) {
-      localStorage.setItem("hsn_code", JSON.stringify(response.data.result));
-      setCodes(response.data.result);
+      const formatted = response.data.result.map((i) => ({
+        ...i,
+        hsn_code: i.hsn_code ? i.hsn_code.toString().padStart(8, "0") : "",
+      }));
+      localStorage.setItem("hsn_code", JSON.stringify(formatted));
+      setCodes(formatted);
     }
   };
 
@@ -206,7 +210,13 @@ function NewUserForm({ onSave, popupInfo, setUsers }) {
   });
   const [errMassage, setErrorMassage] = useState("");
   useEffect(() => {
-    if (popupInfo?.type === "edit") setdata(popupInfo.data);
+    if (popupInfo?.type === "edit")
+      setdata({
+        ...popupInfo.data,
+        hsn_code: popupInfo.data.hsn_code
+          ? popupInfo.data.hsn_code.toString().padStart(8, "0")
+          : "",
+      });
   }, [popupInfo.data, popupInfo?.type]);
 
   const submitHandler = async (e) => {
@@ -289,7 +299,7 @@ function NewUserForm({ onSave, popupInfo, setUsers }) {
                   <label className="selectLabel">
                     HSN Code
                     <input
-                      type="number"
+                      type="text"
                       name="sort_order"
                       className="numberInput"
                       value={data?.hsn_code}
@@ -299,6 +309,7 @@ function NewUserForm({ onSave, popupInfo, setUsers }) {
                           hsn_code: e.target.value,
                         })
                       }
+                      maxLength={8}
                     />
                   </label>
                 </div>

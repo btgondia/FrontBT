@@ -56,7 +56,13 @@ const ItemsPage = () => {
         "Content-Type": "application/json",
       },
     });
-    if (response.data.success) setItemsData(response.data.result);
+    if (response.data.success)
+      setItemsData(
+        response.data.result.map((item) => ({
+          ...item,
+          hsn: item.hsn ? item.hsn.toString().padStart(8, "0") : "",
+        }))
+      );
   };
   useEffect(() => {
     const controller = new AbortController();
@@ -769,6 +775,9 @@ function NewUserForm({
         conversion: "1",
         status: 1,
         ...popupInfo.data,
+        hsn: popupInfo.data.hsn
+          ? popupInfo.data.hsn.toString().padStart(8, "0")
+          : "",
       });
     else if (popupInfo?.type === "price")
       setdata({
@@ -834,6 +843,13 @@ function NewUserForm({
       setErrorMassage("Please insert Unique Barcode");
       return;
     }
+
+    if (!/^[0-9]{8}$/.test(obj.hsn)) {
+      setNotification({ success: false, message: "HSN Code should be of 8 digit" });
+      return;
+    }
+
+    obj.hsn = obj.hsn.toString().padStart(8, "0");
 
     if (obj.img) {
       const previousFile = obj.img;
@@ -1436,7 +1452,7 @@ function NewUserForm({
                       <label className="selectLabel">
                         Product HSN
                         <input
-                          type="number"
+                          type="text"
                           name="one_pack"
                           className="numberInput"
                           value={data?.hsn}
@@ -1448,7 +1464,6 @@ function NewUserForm({
                               });
                           }}
                           maxLength={8}
-                          // disabled={true}
                         />
                       </label>
                       <label className="selectLabel" style={{ width: "100px" }}>
