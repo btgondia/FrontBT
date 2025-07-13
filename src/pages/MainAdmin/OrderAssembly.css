@@ -1,317 +1,50 @@
-.order-assembly-page {
-  position: absolute;
-  top: 50px;
-  left: 100px;
-  width: calc(100vw - 100px);
-  height: calc(100vh - 50px);
-  background: #f8f9fa;
-  padding: 24px;
-  overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-}
+[plugin:vite:react-babel] C:\Users\priya\Desktop\assembly\ProjectBT-jatin\src\pages\MainAdmin\OrderAssembly.jsx: Unexpected token (1:0)
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.page-header h2 {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 600;
-  color: #212529;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.assembly-layout {
-  display: flex;
-  gap: 24px;
-  height: calc(100% - 100px);
-}
-
-.left-section,
-.right-section {
-  width: 40%;
-  height: 65vh;
-}
-
-.assembly-container {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.container-header {
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid #e9ecef;
-  background: #fff;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.container-header h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #212529;
-}
-
-.item-count {
-  background: #e3f2fd;
-  color: #1976d2;
-  padding: 4px 12px;
-  border-radius: 16px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.container-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px 24px 24px;
-}
-
-/* Custom scrollbar */
-.container-content::-webkit-scrollbar {
-  width: 6px;
-  display: block;
-}
-
-.container-content::-webkit-scrollbar-track {
-  background: #f1f3f4;
-  border-radius: 3px;
-}
-
-.container-content::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-
-.container-content::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
-
-/* Items to Assemble Styles */
-.item-card {
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: all 0.2s ease;
-}
-
-.item-card:hover {
-  background: #e3f2fd;
-  border-color: #1976d2;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.item-info h4 {
-  margin: 0 0 4px 0;
-  font-size: 16px;
-  font-weight: 500;
-  color: #212529;
-}
-
-.item-details {
-  margin: 0;
-  font-size: 14px;
-  color: #6c757d;
-}
-
-.item-actions {
-  display: flex;
-  gap: 8px;
-}
-
-/* Crate Progress Styles */
-.crate-card {
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 12px;
-  transition: all 0.2s ease;
-}
-
-.crate-card:hover {
-  background: #fff;
-  border-color: #dee2e6;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.crate-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.crate-header h4 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 500;
-  color: #212529;
-}
-
-.status-badge {
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.status-badge.complete {
-  background: #d4edda;
-  color: #155724;
-}
-
-.status-badge.in-progress {
-  background: #fff3cd;
-  color: #856404;
-}
-
-.progress-section {
-  margin-bottom: 12px;
-}
-
-.progress-info {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.progress-text {
-  font-size: 14px;
-  font-weight: 500;
-  color: #212529;
-}
-
-.items-text {
-  font-size: 12px;
-  color: #6c757d;
-}
-
-.progress-bar {
-  width: 100%;
-  height: 8px;
-  background: #e9ecef;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-
-.crate-actions {
-  display: flex;
-  gap: 8px;
-}
-
-/* Button Styles */
-.action-btn {
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: none;
-  outline: none;
-}
-
-.action-btn.primary {
-  background: #1976d2;
-  color: white;
-}
-
-.action-btn.primary:hover {
-  background: #1565c0;
-  transform: translateY(-1px);
-}
-
-.action-btn.secondary {
-  background: #6c757d;
-  color: white;
-}
-
-.action-btn.secondary:hover {
-  background: #5a6268;
-}
-
-.action-btn.success {
-  background: #28a745;
-  color: white;
-}
-
-.action-btn.success:hover {
-  background: #218838;
-}
-
-.action-btn.outline {
-  background: transparent;
-  color: #1976d2;
-  border: 1px solid #1976d2;
-}
-
-.action-btn.outline:hover {
-  background: #1976d2;
-  color: white;
-}
-
-/* Responsive Design */
-@media (max-width: 1200px) {
-  .assembly-layout {
-    flex-direction: column;
-    gap: 16px;
-  }
-  
-  .left-section,
-  .right-section {
-    width: 100%;
-    height: 45vh;
-  }
-}
-
-@media (max-width: 768px) {
-  .order-assembly-page {
-    padding: 16px;
-  }
-  
-  .page-header {
-    flex-direction: column;
-    gap: 16px;
-    align-items: flex-start;
-  }
-  
-  .header-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-  
-  .left-section,
-  .right-section {
-    height: 40vh;
-  }
-}
+  4 |   left: 100px;
+C:/Users/priya/Desktop/assembly/ProjectBT-jatin/src/pages/MainAdmin/OrderAssembly.jsx:1:0
+1  |  .order-assembly-page {
+   |  ^
+2  |    position: absolute;
+3  |    top: 50px;
+    at constructor (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:360:19)
+    at JSXParserMixin.raise (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:3327:19)
+    at JSXParserMixin.unexpected (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:3347:16)
+    at JSXParserMixin.parseExprAtom (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:11116:16)
+    at JSXParserMixin.parseExprAtom (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:6937:20)
+    at JSXParserMixin.parseExprSubscripts (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:10748:23)
+    at JSXParserMixin.parseUpdate (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:10733:21)
+    at JSXParserMixin.parseMaybeUnary (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:10713:23)
+    at JSXParserMixin.parseMaybeUnaryOrPrivate (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:10566:61)
+    at JSXParserMixin.parseExprOps (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:10571:23)
+    at JSXParserMixin.parseMaybeConditional (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:10548:23)
+    at JSXParserMixin.parseMaybeAssign (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:10511:21)
+    at JSXParserMixin.parseExpressionBase (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:10465:23)
+    at C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:10461:39
+    at JSXParserMixin.allowInAnd (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:12085:16)
+    at JSXParserMixin.parseExpression (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:10461:17)
+    at JSXParserMixin.parseStatementContent (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:12529:23)
+    at JSXParserMixin.parseStatementLike (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:12396:17)
+    at JSXParserMixin.parseModuleItem (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:12373:17)
+    at JSXParserMixin.parseBlockOrModuleBlockBody (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:12950:36)
+    at JSXParserMixin.parseBlockBody (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:12943:10)
+    at JSXParserMixin.parseProgram (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:12270:10)
+    at JSXParserMixin.parseTopLevel (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:12260:25)
+    at JSXParserMixin.parse (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:14110:10)
+    at parse (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\parser\lib\index.js:14144:38)
+    at parser (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\core\lib\parser\index.js:41:34)
+    at parser.next (<anonymous>)
+    at normalizeFile (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\core\lib\transformation\normalize-file.js:64:37)
+    at normalizeFile.next (<anonymous>)
+    at run (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\core\lib\transformation\index.js:22:50)
+    at run.next (<anonymous>)
+    at transform (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\core\lib\transform.js:22:33)
+    at transform.next (<anonymous>)
+    at step (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\gensync\index.js:261:32)
+    at C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\gensync\index.js:273:13
+    at async.call.result.err.err (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\gensync\index.js:223:11)
+    at C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\gensync\index.js:189:28
+    at C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\@babel\core\lib\gensync-utils\async.js:67:7
+    at C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\gensync\index.js:113:33
+    at step (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\gensync\index.js:287:14)
+    at C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\gensync\index.js:273:13
+    at async.call.result.err.err (C:\Users\priya\Desktop\assembly\ProjectBT-jatin\node_modules\gensync\index.js:223:11
