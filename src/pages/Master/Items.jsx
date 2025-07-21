@@ -18,6 +18,7 @@ import ItemSequence from "../../components/ItemSequence";
 
 const ItemsPage = () => {
   const [itemsData, setItemsData] = useState([]);
+  const [isPricePopup, setIsPricePopup] = useState(false);
   const [disabledItem, setDisabledItem] = useState(false);
   const [itemCategories, setItemCategories] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -247,6 +248,7 @@ const ItemsPage = () => {
           companies={companies}
           itemCategories={itemCategories}
           popupInfo={popupForm}
+          isPricePopup={popupForm?.type === "price"}
           items={itemsData}
           setNotification={setNotification}
           codes={codes}
@@ -737,6 +739,7 @@ function NewUserForm({
   items,
   setNotification,
   codes,
+  isPricePopup,
 }) {
   const [data, setdata] = useState({ item_group_uuid: [] });
 
@@ -765,6 +768,8 @@ function NewUserForm({
   useEffect(() => {
     getCounterGroup();
   }, []);
+    
+
   useEffect(() => {
     if (popupInfo?.type === "dms")
       setdata({
@@ -848,10 +853,10 @@ function NewUserForm({
       return;
     }
 
-    if (!/^[0-9]{8}$/.test(obj.hsn)) {
-      setNotification({ success: true, message: "HSN Code should be of 8 digit" });
-      return;
-    }
+    if (!isPricePopup && !/^[0-9]{8}$/.test(obj.hsn)) {
+  setNotification({ success: true, message: "HSN Code should be of 8 digit" });
+  return;
+}
 
     if (obj.img) {
       const previousFile = obj.img;
