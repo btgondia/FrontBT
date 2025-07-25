@@ -101,6 +101,15 @@ const Card = ({
 	// 	}
 	// 	return "Just now"
 	// }
+const getHighestStage = (status = []) => {
+  try {
+    return status.length
+      ? status.map(s => +s.stage || 0).reduce((a, b) => Math.max(a, b), 0)
+      : 0
+  } catch {
+    return 0
+  }
+}
 
 	const curr = Date.now()
 	const daysCount = ~~((curr - dateTime) / (24 * 60 * 60 * 1000))
@@ -146,10 +155,17 @@ const Card = ({
 							(order?.payment_pending ? " payment-pending" : "")
 						}
 						style={{
-							gap: "2px",
-							backgroundColor:
-								order.order_status === "A" ? "#00edff" : order.counter_order ? "#e28743" : "#fff",
-						}}
+  gap: "2px",
+  backgroundColor:
+    getHighestStage(order?.status) === 3.5
+      ? "#b6eab6"
+      : order.order_status === "A"
+      ? "#00edff"
+      : order.counter_order
+      ? "#e28743"
+      : "#fff",
+}}
+
 					>
 						<p
 							className="title2"
@@ -209,18 +225,23 @@ const Card = ({
 </div>
 
 						<div style={{ fontSize: "10px", fontWeight: 600 }}>{getQty()}</div>
-						<div
-							className="card-color-sheet"
-							id="sheet1"
-							style={{ height: `calc(${cardColor1Height}% + 2px)` }}
-						/>
-						<div
-							className="card-color-sheet"
-							id="sheet2"
-							style={{
-								height: cardColor1Height >= 100 ? `calc(${cardColor2Height}% + 2px)` : 0,
-							}}
-						/>
+						{getHighestStage(order?.status) !== 3.5 && (
+  <div
+    className="card-color-sheet"
+    id="sheet1"
+    style={{ height: `calc(${cardColor1Height}% + 2px)` }}
+  />
+)}
+
+						{getHighestStage(order?.status) !== 3.5 && (
+  <div
+    className="card-color-sheet"
+    id="sheet2"
+    style={{
+      height: cardColor1Height >= 100 ? `calc(${cardColor2Height}% + 2px)` : 0,
+    }}
+  />
+)}
 					</div>
 				</button>
 			</div>
