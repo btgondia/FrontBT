@@ -72,7 +72,9 @@ let titleData = [
 	{ value: "items", name: "Items" },
 	{ value: "ledgerGroup", name: "Ledger Group" },
 	{ value: "ledgers", name: "Ledgers" },
-	{ value: "admin", name: "DASHBOARD - Route" }
+	{ value: "admin", name: "DASHBOARD - Route" },
+	/* ⭐ NEW: title for Assembly Devices page */
+	{ value: "assemblyDevices", name: "Assembly Devices" }
 ]
 const Sidebar = ({ setCollectionTags, allAmountValue }) => {
 	const { setcalculationPopup, view, setCounterNotesPopup } = useContext(context)
@@ -84,7 +86,7 @@ const Sidebar = ({ setCollectionTags, allAmountValue }) => {
 	const location = useLocation()
 	document.title = useMemo(() => {
 		let title = titleData.find(a => location.pathname.includes(a.value))
-		return title.name || "BT"
+		return title?.name || "BT"
 	}, [location])
 
 	return (
@@ -221,6 +223,11 @@ const Sidebar = ({ setCollectionTags, allAmountValue }) => {
 										{
 											name: "Expenses",
 											link: "/admin/expense"
+										},
+										/* ⭐ NEW: Assembly Devices menu item */
+										{
+											name: "Assembly Devices",
+											link: "/admin/assemblyDevices"
 										}
 								  ]
 						}

@@ -98,6 +98,9 @@ import GSTReturnsReport from "./pages/Reports/GSTReturnsReport"
 import HSNCode from "./pages/Master/HsnCode"
 import TripsModal from "./pages/QuikAccess/TripsModal"
 
+/* ⭐ NEW: Assembly Devices page */
+import AssemblyDevices from "./pages/MainAdmin/AssemblyDevices"
+
 export const server = ["https://api.btgondia.com", "http://localhost:9000"][
 	window.location.origin.includes("btgondia")
 		? 0 // ! DONOT CHANGE THIS (for prod env)
@@ -391,9 +394,9 @@ function App() {
 						<Route path="/admin/editVoucher/:accounting_voucher_uuid" element={<AddVoucher />} />
 
 						<Route path="/admin/AddOutStanding" element={<AddOutStanding />} />
-                                                <Route path="/admin/addStock" element={<AddStock />} />
-                                                <Route path="/admin/orderAssembly" element={<OrderAssembly />} />
-                                                <Route path="/admin/adjustStock" element={<AdjustStock />} />
+						<Route path="/admin/addStock" element={<AddStock />} />
+						<Route path="/admin/orderAssembly" element={<OrderAssembly />} />
+						<Route path="/admin/adjustStock" element={<AdjustStock />} />
 						<Route path="/admin/userActivity" element={<UserActivity />} />
 						<Route path="/admin/unknownEntry" element={<UknownVouchers />} />
 						<Route path="/admin/SearchTransitionTags" element={<SearchTransitionTags />} />
@@ -408,8 +411,6 @@ function App() {
 						<Route path="/admin/cashRegisterReport" element={<CashRegisterReport />} />
 						<Route path="/admin/StockAdjustmentReport" element={<StockAdjustmentReport />} />
 						<Route path="/admin/RetailerMarginReport" element={<RetailerMarginReport />} />
-						<Route path="/admin/LedgerClosingBalance" element={<LedgerClosingBalance />} />
-						<Route path="/admin/cancelOrders" element={<CancelOrders />} />
 						<Route path="/admin/ItemsReport" element={<ItemDetails />} />
 						<Route path="/admin/CompletedTripsReport" element={<CompletedTrips />} />
 						<Route path="/admin/CounterLeger" element={view ? <CounterLegerReport /> : <CounterLeger />} />
@@ -421,6 +422,10 @@ function App() {
 						<Route path="/admin/PartyWiseCompanyDiscount" element={<PartyWiseCompanyDiscount />} />
 						<Route path="/admin/signedBills" element={<SignedBills />} />
 						<Route path="/admin/tasks" element={<TasksPage />} />
+
+						{/* ⭐ NEW: Assembly Devices */}
+						<Route path="/admin/assemblyDevices" element={<AssemblyDevices />} />
+
 						<Route path="/admin/BankReconciliation" element={<BankReconciliation />} />
 						<Route path="/admin/OpeningBalanceReport" element={<OpeningBalanceReport />} />
 						<Route path="*" element={<Navigate replace to={view ? "/accounting_dashboard" : "/trip"} />} />
