@@ -12,6 +12,7 @@ import ItemsPage from "./pages/Master/Items"
 import axios from "axios"
 import AutoIncreaseQuantity from "./pages/others/AutoIncreaseQuantity"
 import AutoIncreaseItem from "./pages/others/AutoIncreaseItem"
+import OrderAssembly from "./pages/MainAdmin/OrderAssembly"
 import Main from "./users/Main"
 import LoginPage from "./users/LoginPage"
 import Processing from "./users/Processing"
@@ -38,7 +39,7 @@ import AddStock from "./pages/AddOrder/AddStock"
 import StockTransferVouchers from "./pages/Reports/StockTransferVouchers"
 import CancelOrders from "./pages/Reports/CancelOrder"
 import AdjustStock from "./pages/AddOrder/AdjustStock"
-import InvoiceNumberWiseOrder from "./pages/Reports/InvoiceNumberWiseOrder"
+import InvoiceWiseOrder from "./pages/Reports/InvoiceWiseOrder"
 import PartyWiseCompanyDiscount from "./pages/Reports/PartyWiseCompanyDiscount"
 import RetailerMarginReport from "./pages/Reports/RetailerMarginReport"
 import SalesmanItemSuggestion from "./pages/others/SalesmanItemSuggestion"
@@ -97,13 +98,16 @@ import GSTReturnsReport from "./pages/Reports/GSTReturnsReport"
 import HSNCode from "./pages/Master/HsnCode"
 import TripsModal from "./pages/QuikAccess/TripsModal"
 
+/* ⭐ NEW: Assembly Devices page */
+import AssemblyDevices from "./pages/MainAdmin/AssemblyDevices"
+
 export const server = ["https://api.btgondia.com", "http://localhost:9000"][
 	window.location.origin.includes("btgondia")
-		? 0 // ! DONOT CHANGE THIS (for prod env)
-		: 0 // * for dev env (Switch to 0 for using prod server and 1 for localhost)
+		? 0 // ! FOR PROD ENV (DONOT CHANGE)
+		: 1 // ? FOR DEV ENV (Switch to 0 to use production server and 1 for localhost)
 ]
 
-export let Version = 405 // ? increment version count for each deployment rather than each count
+export let Version = 408 // ? Increment version count for each deployment rather than each git commit
 
 function App() {
 	const [userType, setUserType] = useState(sessionStorage.getItem("userType"))
@@ -353,7 +357,7 @@ function App() {
 
 						<Route path="/admin/SalesmanItemSuggestion" element={<SalesmanItemSuggestion />} />
 						<Route path="/admin/routes" element={<RoutesPage />} />
-						<Route path="/admin/InvoiceNumberWiseOrder" element={<InvoiceNumberWiseOrder />} />
+						<Route path="/admin/InvoiceWiseOrder" element={<InvoiceWiseOrder />} />
 						<Route path="/admin/itemCategories" element={<ItemCategories />} />
 						<Route path="/admin/counterGroup" element={<CounterGroup />} />
 						<Route path="/admin/counterCharges" element={<CounterCharges />} />
@@ -391,6 +395,7 @@ function App() {
 
 						<Route path="/admin/AddOutStanding" element={<AddOutStanding />} />
 						<Route path="/admin/addStock" element={<AddStock />} />
+						<Route path="/admin/orderAssembly" element={<OrderAssembly />} />
 						<Route path="/admin/adjustStock" element={<AdjustStock />} />
 						<Route path="/admin/userActivity" element={<UserActivity />} />
 						<Route path="/admin/unknownEntry" element={<UknownVouchers />} />
@@ -406,8 +411,6 @@ function App() {
 						<Route path="/admin/cashRegisterReport" element={<CashRegisterReport />} />
 						<Route path="/admin/StockAdjustmentReport" element={<StockAdjustmentReport />} />
 						<Route path="/admin/RetailerMarginReport" element={<RetailerMarginReport />} />
-						<Route path="/admin/LedgerClosingBalance" element={<LedgerClosingBalance />} />
-						<Route path="/admin/cancelOrders" element={<CancelOrders />} />
 						<Route path="/admin/ItemsReport" element={<ItemDetails />} />
 						<Route path="/admin/CompletedTripsReport" element={<CompletedTrips />} />
 						<Route path="/admin/CounterLeger" element={view ? <CounterLegerReport /> : <CounterLeger />} />
@@ -419,6 +422,10 @@ function App() {
 						<Route path="/admin/PartyWiseCompanyDiscount" element={<PartyWiseCompanyDiscount />} />
 						<Route path="/admin/signedBills" element={<SignedBills />} />
 						<Route path="/admin/tasks" element={<TasksPage />} />
+
+						{/* ⭐ NEW: Assembly Devices */}
+						<Route path="/admin/assemblyDevices" element={<AssemblyDevices />} />
+
 						<Route path="/admin/BankReconciliation" element={<BankReconciliation />} />
 						<Route path="/admin/OpeningBalanceReport" element={<OpeningBalanceReport />} />
 						<Route path="*" element={<Navigate replace to={view ? "/accounting_dashboard" : "/trip"} />} />

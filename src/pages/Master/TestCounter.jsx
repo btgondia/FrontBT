@@ -828,12 +828,12 @@ function NewUserForm({ onSave, popupInfo, setCounters, routesData, paymentModes,
 											name="one_pack"
 											className="numberInput"
 											value={data?.counter_code}
-											onChange={e =>
-												setdata({
-													...data,
-													counter_code: e.target.value,
-												})
-											}
+                                                                               onChange={e =>
+                                                                               setdata({
+                                                                               ...data,
+                                                                               counter_code: e.target.value.replace(/\s/g, ""),
+                                                                               })
+                                                                               }
 										/>
 									</label>
 									<label className="selectLabel">

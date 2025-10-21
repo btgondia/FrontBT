@@ -18,7 +18,7 @@ import MessagePopup from "../../components/MessagePopup"
 import TaskPopupMenu from "../../components/TaskPopupMenu"
 import SalesPersoneFilterPopup from "../../components/SalesPersoneFilterPopup"
 import CollectionTag from "../QuikAccess/CollectionTag"
-import { useLocation } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 import context from "../../context/context"
 import { IoCloseCircle } from "react-icons/io5"
 import OrderPrintWrapper from "../../components/OrderPrintWrapper"
@@ -70,7 +70,8 @@ const MainAdmin = () => {
 	const [tasks, setTasks] = useState([])
 	const [reminderDate, setReminderDate] = useState()
 	const [selectedtasks, setSelectedTasks] = useState(false)
-	const location = useLocation()
+        const location = useLocation()
+        const navigate = useNavigate()
 	const [notesState, setNotesState] = useState()
 	const [isCooldown, setIsCooldown] = useState(false)
 
@@ -1064,13 +1065,27 @@ TOTAL: ${amounts}
 									)}
 								</>
 							)}
-							<button className="simple_Logout_button" onClick={updatePendingPaymentsVisibility}>
-								{!users?.find(_i => _i?.user_uuid === user_uuid)?.hide_pending_payments
-									? "Hide Pending Payments"
-									: "Show Pending Payments"}
-							</button>
-						</div>
-					)}
+                                                        <button className="simple_Logout_button" onClick={updatePendingPaymentsVisibility}>
+                                                                {!users?.find(_i => _i?.user_uuid === user_uuid)?.hide_pending_payments
+                                                                        ? "Hide Pending Payments"
+                                                                        : "Show Pending Payments"}
+                                                        </button>
+                                                        {selectOrder && selectedOrder?.length ? (
+                                                                <button
+                                                                        className="simple_Logout_button"
+                                                                        onClick={() => {
+                                                                                sessionStorage.setItem(
+                                                                                        "orderAssemblySelectedOrders",
+                                                                                        JSON.stringify(selectedOrder)
+                                                                                )
+                                                                                navigate("/admin/orderAssembly", { state: { orders: selectedOrder } })
+                                                                        }}
+                                                                >
+                                                                        Order Assembly
+                                                                </button>
+                                                        ) : null}
+                                                </div>
+                                        )}
 					<div className="content-container" id="content-file-container">
 						{noOrder ? (
 							<div className="noOrder">No Order</div>

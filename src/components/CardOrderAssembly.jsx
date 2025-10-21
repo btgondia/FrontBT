@@ -1,6 +1,6 @@
 import axios from "axios"
 
-const Card = ({
+const CardOrderAssembly = ({
 	title2,
 	title1,
 	selectedOrder,
@@ -131,134 +131,54 @@ const getHighestStage = (status = []) => {
 	if (cardColor2Height) cardColor2Height = Math.min(cardColor2Height, 100)
 
 	return (
-		<>
+	<div
+		onDoubleClick={onDoubleClick}
+		onContextMenu={(e) => {
+			e.preventDefault()
+			e.stopPropagation()
+			setSelectOrder(true)
+		}}
+	>
+		<button
+			className={
+				"card-focus" +
+				(rounded ? " rounded" : "") +
+				(selectedOrder ? " selected-seat" : selectedCounter ? " blinking-seat" : "")
+			}
+			style={{ margin: "5px" }}
+		>
 			<div
-				onDoubleClick={onDoubleClick}
-				onContextMenu={(e) => {
-					e.preventDefault()
-					e.stopPropagation()
-					setSelectOrder(true)
+				className={
+					"card" +
+					(rounded ? " rounded" : "") +
+					(order?.payment_pending ? " payment-pending" : "")
+				}
+				style={{
+					backgroundColor:
+						getHighestStage(order?.status) === 3.5
+							? "#b6eab6"
+							: order.order_status === "A"
+							? "#00edff"
+							: order.counter_order
+							? "#e28743"
+							: "#fff",
+					padding: "8px",
+					textAlign: "left",
 				}}
 			>
-				<button
-					className={
-						"card-focus" +
-						(rounded ? " rounded" : "") +
-						(selectedOrder ? " selected-seat" : selectedCounter ? " blinking-seat" : "")
-					}
-					style={{ margin: "5px" }}
-				>
-					<div
-						className={
-							"card" +
-							(rounded ? " rounded" : "") +
-							(order?.payment_pending ? " payment-pending" : "")
-						}
-						style={{
-  gap: "2px",
-  backgroundColor:
-    getHighestStage(order?.status) === 3.5
-      ? "#b6eab6"
-      : order.order_status === "A"
-      ? "#00edff"
-      : order.counter_order
-      ? "#e28743"
-      : "#fff",
-}}
-
-					>
-						<p
-							className="title2"
-							style={{
-								display: "inline-block",
-								whiteSpace: "nowrap",
-								overflow: "hidden",
-								textOverflow: "ellipsis",
-								maxWidth: "15ch",
-							}}
-						>
-							{title1 ? title1 : title2}
-						</p>
-						<p
-							className="caption"
-							style={{
-								color: "#000",
-								display: "inline-block",
-								whiteSpace: "nowrap",
-								overflow: "hidden",
-								textOverflow: "ellipsis",
-								maxWidth: "15ch",
-							}}
-						>
-							{title1 ? title2 : ""}
-						</p>
-						<p className="title2">{daysCount} Days</p>
-						{order.counter_order ? (
-							<div className="flex" style={{ justifyContent: "space-between", width: "100px" }}>
-								<button
-									className="acceptrejectButton"
-									onClick={(e) => {
-										e.stopPropagation()
-										PutOrder(true)
-									}}
-								>
-									Reject
-								</button>
-								<button
-									className="acceptrejectButton green"
-									onClick={(e) => {
-										e.stopPropagation()
-										PutOrder(false)
-									}}
-								>
-									Accept
-								</button>
-							</div>
-						) : (
-							<div>{status}</div>
-						)}
-						<div style={{ fontSize: "10px", fontWeight: 600 }}>
-  {`${days[new Date(dateTime).getDay()] || ""} ${new Date(dateTime).getDate() || ""} ${
-    monthNames[new Date(dateTime).getMonth()] || ""
-  }`}{" "}
-  {formatAMPM(new Date(dateTime)) || ""}
-</div>
-
-						<div style={{ fontSize: "10px", fontWeight: 600 }}>{getQty()}</div>
-						{getHighestStage(order?.status) !== 3.5 && (
-  <div
-    className="card-color-sheet"
-    id="sheet1"
-    style={{ height: `calc(${cardColor1Height}% + 2px)` }}
-  />
-)}
-
-						{getHighestStage(order?.status) !== 3.5 && (
-  <div
-    className="card-color-sheet"
-    id="sheet2"
-    style={{
-      height: cardColor1Height >= 100 ? `calc(${cardColor2Height}% + 2px)` : 0,
-    }}
-  />
-)}
-					</div>
-				</button>
+				<p className="title2" style={{ marginBottom: "4px" }}>
+					{title1 ? title1 : title2}
+				</p>
+				<p className="caption" style={{ color: "#000" }}>
+					{title1 ? title2 : ""}
+				</p>
+				<p className="caption" style={{ color: "#000", fontWeight: 600 }}>
+					₹ {order?.order_grandtotal || 0}
+				</p>
 			</div>
-			{/* {on_order && visibleContext?.id === on_order.seat_uuid &&
-            <ContextMenu
-            //   itemRef={itemRef}
-              id={on_order?.uuid}
-              visibleContext={visibleContext}
-              setVisibleContext={setVisibleContext}
-              isMouseInsideContext={isMouseInsideContext}
-              order_type={0}
-              seats={seats}
-              currentSeat={on_order?.seat_uuid}
-            />
-          } */}
-		</>
-	)
+		</button>
+	</div>
+)
 }
 
-export default Card
+export default CardOrderAssembly

@@ -24,7 +24,7 @@ let titleData = [
 	{ value: "OpeningBalanceReport", name: "Opening Balance Report" },
 	{ value: "BankReconciliation", name: "Bank Reconciliation" },
 	{ value: "SalesmanItemSuggestion", name: "Salesman Item Suggestion" },
-	{ value: "InvoiceNumberWiseOrder", name: "Invoice Number Wise Order" },
+	{ value: "InvoiceWiseOrder", name: "Invoice Number Wise Order" },
 	{ value: "PartyWiseCompanyDiscount", name: "Party Wise Company Discount" },
 	{ value: "trip", name: "DASHBOARD - Trip" },
 	{ value: "itemCategories", name: "Item Categories" },
@@ -72,7 +72,9 @@ let titleData = [
 	{ value: "items", name: "Items" },
 	{ value: "ledgerGroup", name: "Ledger Group" },
 	{ value: "ledgers", name: "Ledgers" },
-	{ value: "admin", name: "DASHBOARD - Route" }
+	{ value: "admin", name: "DASHBOARD - Route" },
+	/* ⭐ NEW: title for Assembly Devices page */
+	{ value: "assemblyDevices", name: "Assembly Devices" }
 ]
 const Sidebar = ({ setCollectionTags, allAmountValue }) => {
 	const { setcalculationPopup, view, setCounterNotesPopup } = useContext(context)
@@ -84,7 +86,7 @@ const Sidebar = ({ setCollectionTags, allAmountValue }) => {
 	const location = useLocation()
 	document.title = useMemo(() => {
 		let title = titleData.find(a => location.pathname.includes(a.value))
-		return title.name || "BT"
+		return title?.name || "BT"
 	}, [location])
 
 	return (
@@ -221,6 +223,11 @@ const Sidebar = ({ setCollectionTags, allAmountValue }) => {
 										{
 											name: "Expenses",
 											link: "/admin/expense"
+										},
+										/* ⭐ NEW: Assembly Devices menu item */
+										{
+											name: "Assembly Devices",
+											link: "/admin/assemblyDevices"
 										}
 								  ]
 						}
@@ -280,10 +287,6 @@ const Sidebar = ({ setCollectionTags, allAmountValue }) => {
 											link: "/admin/LedgerClosingBalance"
 										},
 										{
-											name: "Cheque Number Search",
-											link: "/admin/ChequeNumberSearch"
-										},
-										{
 											name: "Unknown Entry",
 											link: "/admin/unknownEntry"
 										},
@@ -305,6 +308,10 @@ const Sidebar = ({ setCollectionTags, allAmountValue }) => {
 										}
 								  ]
 								: [
+										{
+											name: "Cheque Number Search",
+											link: "/admin/ChequeNumberSearch"
+										},
 										{
 											name: "User Activity",
 											link: "/admin/userActivity"
@@ -382,8 +389,8 @@ const Sidebar = ({ setCollectionTags, allAmountValue }) => {
 											link: "/admin/cancelOrders"
 										},
 										{
-											name: "Invoice Number Wise Order",
-											link: "/admin/InvoiceNumberWiseOrder"
+											name: "Invoice Wise Order",
+											link: "/admin/InvoiceWiseOrder"
 										},
 										{
 											name: "Party Wise Company Discount",

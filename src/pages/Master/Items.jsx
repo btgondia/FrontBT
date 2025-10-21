@@ -18,6 +18,7 @@ import ItemSequence from "../../components/ItemSequence";
 
 const ItemsPage = () => {
   const [itemsData, setItemsData] = useState([]);
+  const [isPricePopup, setIsPricePopup] = useState(false);
   const [disabledItem, setDisabledItem] = useState(false);
   const [itemCategories, setItemCategories] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -56,7 +57,16 @@ const ItemsPage = () => {
         "Content-Type": "application/json",
       },
     });
-    if (response.data.success) setItemsData(response.data.result);
+    if (response.data.success)
+      setItemsData(
+        response.data.result.map((item) => ({
+          ...item,
+          hsn:
+            item?.hsn !== undefined && item?.hsn !== null
+              ? item.hsn.toString().padStart(8, "0")
+              : "",
+        }))
+      );
   };
   useEffect(() => {
     const controller = new AbortController();
@@ -238,6 +248,7 @@ const ItemsPage = () => {
           companies={companies}
           itemCategories={itemCategories}
           popupInfo={popupForm}
+          isPricePopup={popupForm?.type === "price"}
           items={itemsData}
           setNotification={setNotification}
           codes={codes}
@@ -728,6 +739,7 @@ function NewUserForm({
   items,
   setNotification,
   codes,
+  isPricePopup,
 }) {
   const [data, setdata] = useState({ item_group_uuid: [] });
 
@@ -756,6 +768,8 @@ function NewUserForm({
   useEffect(() => {
     getCounterGroup();
   }, []);
+    
+
   useEffect(() => {
     if (popupInfo?.type === "dms")
       setdata({
@@ -769,6 +783,10 @@ function NewUserForm({
         conversion: "1",
         status: 1,
         ...popupInfo.data,
+        hsn:
+          popupInfo.data?.hsn !== undefined && popupInfo.data?.hsn !== null
+            ? popupInfo.data.hsn.toString().padStart(8, "0")
+            : "",
       });
     else if (popupInfo?.type === "price")
       setdata({
@@ -834,6 +852,11 @@ function NewUserForm({
       setErrorMassage("Please insert Unique Barcode");
       return;
     }
+
+    if (!isPricePopup && !/^[0-9]{8}$/.test(obj.hsn)) {
+  setNotification({ success: true, message: "HSN Code should be of 8 digit" });
+  return;
+}
 
     if (obj.img) {
       const previousFile = obj.img;
@@ -1436,7 +1459,7 @@ function NewUserForm({
                       <label className="selectLabel">
                         Product HSN
                         <input
-                          type="number"
+                          type="text"
                           name="one_pack"
                           className="numberInput"
                           value={data?.hsn}
@@ -1448,7 +1471,6 @@ function NewUserForm({
                               });
                           }}
                           maxLength={8}
-                          // disabled={true}
                         />
                       </label>
                       <label className="selectLabel" style={{ width: "100px" }}>

@@ -31,7 +31,8 @@
 	"scripts": {
 		"start": "vite",
 		"build": "vite build",
-		"serve": "vite preview"
+		"serve": "vite preview",
+		"test": "vitest"
 	},
 	"eslintConfig": {
 		"extends": [
@@ -53,7 +54,11 @@
 	},
 	"packageManager": "yarn@1.22.22+sha1.ac34549e6aa8e7ead463a7407e1c7390f61a6610",
 	"devDependencies": {
+		"@testing-library/jest-dom": "5.16.5",
+		"@testing-library/react": "12.1.5",
 		"@vitejs/plugin-react": "^4.3.4",
-		"vite": "^6.0.11"
+		"jsdom": "^26.1.0",
+		"vite": "^6.0.11",
+		"vitest": "^3.2.4"
 	}
 }
