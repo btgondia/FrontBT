@@ -1,11 +1,15 @@
-// (unchanged from your latest file)
-import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+  useCallback,
+} from "react";
 import { useLocation } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import axios from "axios";
 import { openDB } from "idb";
-import ItemSummaryPane from "../../components/ItemSummaryPane";
 import "./style.css";
 import { useAssemblyProcessing } from "./AssemblyOrderProcessing";
 
@@ -13,7 +17,13 @@ import { useAssemblyProcessing } from "./AssemblyOrderProcessing";
 const norm = (s) => String(s ?? "").trim();
 const nnum = (v, d = 0) => (isNaN(+v) ? d : +v);
 const lineItemId = (ln) =>
-  String(ln?.item_uuid_v2 || ln?.item_uuid || ln?.item_code || ln?.ITEM_CODE || "");
+  String(
+    ln?.item_uuid_v2 ||
+      ln?.item_uuid ||
+      ln?.item_code ||
+      ln?.ITEM_CODE ||
+      ""
+  );
 
 /* Robust total getter (prevents UI zeroing) */
 const getOrderGrand = (o) => {
@@ -36,7 +46,12 @@ const sumOrdersTotal = (orders = []) =>
 const buildItemsIndex = (items = []) => {
   const idx = new Map();
   for (const it of items) {
-    const key = it?.item_uuid || it?.ITEM_UUID || it?.uuid || it?.item_code || it?._id;
+    const key =
+      it?.item_uuid ||
+      it?.ITEM_UUID ||
+      it?.uuid ||
+      it?.item_code ||
+      it?._id;
     if (!key) continue;
     idx.set(String(key), {
       name:
@@ -46,6 +61,16 @@ const buildItemsIndex = (items = []) => {
         norm(it.title),
       mrp: nnum(it.mrp ?? it.MRP ?? it.price_mrp ?? it.Price_MRP),
       category_uuid: norm(it.category_uuid || it.cat_uuid || ""),
+      // pcs per box (conversion)
+      conversion: nnum(
+        it.conversion ??
+          it.CONVERSION ??
+          it.Conv ??
+          it.conv ??
+          it.pcs_in_box ??
+          it.pieces_in_box,
+        1
+      ),
     });
   }
   return idx;
@@ -54,11 +79,22 @@ const buildItemsIndex = (items = []) => {
 const buildCategoryIndex = (cats = []) => {
   const idx = new Map();
   for (const c of cats) {
-    const uuid = norm(c.category_uuid || c.uuid || c._id || c.IDENTIFIER || c.id);
+    const uuid = norm(
+      c.category_uuid ||
+        c.uuid ||
+        c._id ||
+        c.IDENTIFIER ||
+        c.id
+    );
     if (!uuid) continue;
     idx.set(uuid, {
-      title: norm(c.category_title || c.title || c.name || "Uncategorized"),
-      sort_order: typeof c.sort_order === "number" ? c.sort_order : nnum(c.sort_order, 9999),
+      title: norm(
+        c.category_title || c.title || c.name || "Uncategorized"
+      ),
+      sort_order:
+        typeof c.sort_order === "number"
+          ? c.sort_order
+          : nnum(c.sort_order, 9999),
     });
   }
   return idx;
@@ -66,16 +102,26 @@ const buildCategoryIndex = (cats = []) => {
 
 const getName = (ln, itemsIdx) => {
   const fromLine =
-    ln.item_title || ln.item_name || ln.title || ln.name || ln.Item || ln.item;
+    ln.item_title ||
+    ln.item_name ||
+    ln.title ||
+    ln.name ||
+    ln.Item ||
+    ln.item;
   if (fromLine) return norm(fromLine);
   const byUuid = itemsIdx.get(lineItemId(ln));
   return byUuid?.name || "";
 };
 const getMRP = (ln, itemsIdx) => {
-  const fromLine = ln.mrp ?? ln.MRP ?? ln.price_mrp ?? ln.Price_MRP;
+  const fromLine =
+    ln.mrp ?? ln.MRP ?? ln.price_mrp ?? ln.Price_MRP;
   if (!isNaN(+fromLine)) return +fromLine;
   const byUuid = itemsIdx.get(lineItemId(ln));
   return byUuid?.mrp || 0;
+};
+const getConversion = (ln, itemsIdx) => {
+  const byUuid = itemsIdx.get(lineItemId(ln));
+  return byUuid?.conversion ?? null;
 };
 const getCategoryMeta = (ln, itemsIdx, catIdx) => {
   const fromLine = norm(ln.category_uuid || ln.cat_uuid || "");
@@ -89,32 +135,52 @@ const getCategoryMeta = (ln, itemsIdx, catIdx) => {
 function computeItemSummary(orders = [], itemsIdx, catIdx) {
   const catMap = new Map();
   for (const o of orders) {
-    const lines = Array.isArray(o?.item_details) ? o.item_details : [];
-    const orderKey = o?.order_uuid || o?.invoice_number || Math.random().toString(36).slice(2);
+    const lines = Array.isArray(o?.item_details)
+      ? o.item_details
+      : [];
+    const orderKey =
+      o?.order_uuid ||
+      o?.invoice_number ||
+      Math.random().toString(36).slice(2);
     for (const ln of lines) {
       const s = +ln?.status; // 1=Complete, 2=Hold, 3=Cancel
       if (s === 1 || s === 2 || s === 3) continue;
 
-      const itemKey = String(lineItemId(ln) || getName(ln, itemsIdx)).trim();
+      const itemKey = String(
+        lineItemId(ln) || getName(ln, itemsIdx)
+      ).trim();
       if (!itemKey) continue;
 
       const name = getName(ln, itemsIdx);
       const mrp = getMRP(ln, itemsIdx);
+      const conv = getConversion(ln, itemsIdx);
+      const displayName = name;
+
       const catMeta = getCategoryMeta(ln, itemsIdx, catIdx);
       const catTitle = catMeta.title;
 
       if (!catMap.has(catTitle)) {
-        catMap.set(catTitle, { sort_order: catMeta.sort_order ?? 9999, rows: new Map() });
+        catMap.set(catTitle, {
+          sort_order: catMeta.sort_order ?? 9999,
+          rows: new Map(),
+        });
       }
       const bucket = catMap.get(catTitle).rows;
 
       const prev = bucket.get(itemKey) || {
-        key: itemKey, name, mrp, totalB: 0, totalP: 0, orders: new Set(),
+        key: itemKey,
+        name: displayName,
+        mrp,
+        totalB: 0,
+        totalP: 0,
+        conversion: conv ?? null,
+        orders: new Set(),
       };
       prev.totalB += isNaN(+ln.b) ? 0 : +ln.b;
       prev.totalP += isNaN(+ln.p) ? 0 : +ln.p;
       prev.orders.add(orderKey);
-      if (!prev.name && name) prev.name = name;
+      if (!prev.conversion && conv) prev.conversion = conv;
+      if (!prev.name && displayName) prev.name = displayName;
       if (!prev.mrp && mrp) prev.mrp = mrp;
 
       bucket.set(itemKey, prev);
@@ -123,14 +189,33 @@ function computeItemSummary(orders = [], itemsIdx, catIdx) {
 
   const out = [];
   for (const [category, { sort_order, rows }] of catMap.entries()) {
-    const arr = Array.from(rows.values()).map((r) => ({ ...r, orderCount: r.orders.size }));
+    const arr = Array.from(rows.values()).map((r) => {
+      let totalB = nnum(r.totalB, 0);
+      let totalP = nnum(r.totalP, 0);
+      const conv = nnum(r.conversion, 0);
+
+      // 🔁 convert extra pieces into boxes
+      if (conv > 0) {
+        const extraBoxes = Math.floor(totalP / conv);
+        totalB += extraBoxes;
+        totalP = totalP % conv;
+      }
+
+      return {
+        ...r,
+        totalB,
+        totalP,
+        orderCount: r.orders.size,
+      };
+    });
     arr.sort((a, b) => a.name.localeCompare(b.name)); // items A→Z within category
     out.push({ category, sort_order, rows: arr });
   }
   out.sort((a, b) => {
     if (a.category === "Uncategorized") return 1;
     if (b.category === "Uncategorized") return -1;
-    if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+    if (a.sort_order !== b.sort_order)
+      return a.sort_order - b.sort_order;
     return a.category.localeCompare(b.category);
   });
   return out;
@@ -138,12 +223,56 @@ function computeItemSummary(orders = [], itemsIdx, catIdx) {
 
 /* ------------------------------- page ------------------------------- */
 const OrderAssembly = () => {
+  // force mobile layout on /users/processing route (for testing on PC)
+  const isMobileAssembly = window.location.pathname.includes(
+    "/users/processing"
+  );
+
   const location = useLocation();
   const [orders, setOrders] = useState([]);
   const [search, setSearch] = useState("");
 
-  const [itemsMaster, setItemsMaster] = useState(location.state?.itemsMaster || window.BT_ITEMS || null);
-  const [categoriesMaster, setCategoriesMaster] = useState(location.state?.categoriesMaster || window.BT_CATEGORIES || null);
+  const [itemsMaster, setItemsMaster] = useState(
+    location.state?.itemsMaster || window.BT_ITEMS || null
+  );
+  const [categoriesMaster, setCategoriesMaster] = useState(
+    location.state?.categoriesMaster ||
+      window.BT_CATEGORIES ||
+      null
+  );
+  const [counterIndex, setCounterIndex] = useState(new Map());
+
+  /* ---------- MOBILE VIEW DETECTION ---------- */
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileTab, setMobileTab] = useState("items"); // "items" | "carate"
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mql = window.matchMedia("(max-width: 768px)");
+
+    const handleChange = (e) => {
+      setIsMobile(e.matches);
+    };
+
+    // initial
+    setIsMobile(mql.matches);
+
+    // subscribe
+    if (mql.addEventListener) {
+      mql.addEventListener("change", handleChange);
+    } else {
+      // older browsers
+      mql.addListener(handleChange);
+    }
+
+    return () => {
+      if (mql.removeEventListener) {
+        mql.removeEventListener("change", handleChange);
+      } else {
+        mql.removeListener(handleChange);
+      }
+    };
+  }, []);
 
   // Preserve original grand totals to defend against accidental zeroing
   const originalGrandTotalsRef = useRef(new Map());
@@ -153,7 +282,8 @@ const OrderAssembly = () => {
       if (!id) return;
       if (!originalGrandTotalsRef.current.has(id)) {
         const gt = getOrderGrand(o);
-        if (gt > 0) originalGrandTotalsRef.current.set(id, gt);
+        if (gt > 0)
+          originalGrandTotalsRef.current.set(id, gt);
       }
     });
   }, [orders]);
@@ -165,8 +295,12 @@ const OrderAssembly = () => {
       const id = o?.order_uuid || o?.invoice_number;
       if (!id) return o;
       const current = +o?.order_grandtotal;
-      const original = originalGrandTotalsRef.current.get(id);
-      if ((!Number.isFinite(current) || current === 0) && Number.isFinite(original)) {
+      const original =
+        originalGrandTotalsRef.current.get(id);
+      if (
+        (!Number.isFinite(current) || current === 0) &&
+        Number.isFinite(original)
+      ) {
         changed = true;
         return { ...o, order_grandtotal: original };
       }
@@ -176,25 +310,45 @@ const OrderAssembly = () => {
   }, [orders]); // safe due to 'changed' guard
 
   // Device bases (1..20)
-  const [deviceBases, setDeviceBases] = useState(Array.from({ length: 20 }, () => ""));
+  const [deviceBases, setDeviceBases] = useState(
+    Array.from({ length: 20 }, () => "")
+  );
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await axios.get("/api/assembly-devices");
-        const list = Array.isArray(data?.devices) ? data.devices : [];
-        const byNum = new Map(list.map((d) => [Number(d.device_number), String(d.url || "").trim()]));
-        const normed = Array.from({ length: 20 }, (_, i) => {
-          const n = i + 1;
-          let base = byNum.get(n) || "";
-          if (!base) return "";
-          const valIdx = base.toLowerCase().lastIndexOf("val=");
-          if (valIdx >= 0) base = base.slice(0, valIdx);
-          if (!/[&?]$/.test(base)) base += base.includes("?") ? "&" : "?";
-          return base;
-        });
+        const { data } = await axios.get(
+          "/api/assembly-devices"
+        );
+        const list = Array.isArray(data?.devices)
+          ? data.devices
+          : [];
+        const byNum = new Map(
+          list.map((d) => [
+            Number(d.device_number),
+            String(d.url || "").trim(),
+          ])
+        );
+        const normed = Array.from(
+          { length: 20 },
+          (_, i) => {
+            const n = i + 1;
+            let base = byNum.get(n) || "";
+            if (!base) return "";
+            const valIdx = base
+              .toLowerCase()
+              .lastIndexOf("val=");
+            if (valIdx >= 0) base = base.slice(0, valIdx);
+            if (!/[&?]$/.test(base))
+              base += base.includes("?") ? "&" : "?";
+            return base;
+          }
+        );
         setDeviceBases(normed);
       } catch (e) {
-        console.error("Failed to load device URLs for assembly", e);
+        console.error(
+          "Failed to load device URLs for assembly",
+          e
+        );
       }
     })();
   }, []);
@@ -203,9 +357,14 @@ const OrderAssembly = () => {
   useEffect(() => {
     const loadCats = async () => {
       try {
-        const r = await axios.get("https://api.btgondia.com/itemCategories/GetItemCategoryList");
-        const arr = Array.isArray(r.data?.result) ? r.data.result : r.data;
-        if (Array.isArray(arr) && arr.length) setCategoriesMaster(arr);
+        const r = await axios.get(
+          "https://api.btgondia.com/itemCategories/GetItemCategoryList"
+        );
+        const arr = Array.isArray(r.data?.result)
+          ? r.data.result
+          : r.data;
+        if (Array.isArray(arr) && arr.length)
+          setCategoriesMaster(arr);
       } catch (err) {
         console.error("Failed to fetch categories", err);
       }
@@ -219,23 +378,76 @@ const OrderAssembly = () => {
       if (!itemsMaster) {
         try {
           const r = await axios.post("/items/GetItemList");
-          const arr = Array.isArray(r.data?.result) ? r.data.result : r.data;
-          if (Array.isArray(arr) && arr.length) setItemsMaster(arr);
+          const arr = Array.isArray(r.data?.result)
+            ? r.data.result
+            : r.data;
+          if (Array.isArray(arr) && arr.length)
+            setItemsMaster(arr);
         } catch {}
       }
     };
     loadItems();
   }, [itemsMaster]);
 
+  useEffect(() => {
+    const loadCounters = async () => {
+      try {
+        const r = await axios({
+          method: "get",
+          url: "/counters/GetCounterData",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        const list = Array.isArray(r.data?.result)
+          ? r.data.result
+          : r.data;
+        const map = new Map();
+
+        (list || []).forEach((c) => {
+          const id = c?.counter_uuid;
+          if (!id) return;
+          const title =
+            c.counter_title ||
+            c.counter_name ||
+            c.counter ||
+            c.counterCode ||
+            "Unnamed Counter";
+          const sortOrder = nnum(c.sort_order, 9999);
+          map.set(id, { title, sort_order: sortOrder });
+        });
+
+        if (map.size) setCounterIndex(map);
+      } catch (err) {
+        console.error(
+          "Failed to load counters for sort order",
+          err
+        );
+      }
+    };
+
+    loadCounters();
+  }, []);
+
   // Orders from router state
   useEffect(() => {
     setOrders(location.state?.orders || []);
   }, [location.state]);
 
-  const itemsIdx = useMemo(() => buildItemsIndex(itemsMaster || []), [itemsMaster]);
-  const catIdx   = useMemo(() => buildCategoryIndex(categoriesMaster || []), [categoriesMaster]);
+  const itemsIdx = useMemo(
+    () => buildItemsIndex(itemsMaster || []),
+    [itemsMaster]
+  );
+  const catIdx = useMemo(
+    () => buildCategoryIndex(categoriesMaster || []),
+    [categoriesMaster]
+  );
 
-  const grouped  = useMemo(() => computeItemSummary(orders, itemsIdx, catIdx), [orders, itemsIdx, catIdx]);
+  const grouped = useMemo(
+    () => computeItemSummary(orders, itemsIdx, catIdx),
+    [orders, itemsIdx, catIdx]
+  );
 
   const filtered = useMemo(() => {
     if (!search.trim()) return grouped;
@@ -244,12 +456,19 @@ const OrderAssembly = () => {
       .map((g) => ({
         category: g.category,
         sort_order: g.sort_order,
-        rows: g.rows.filter((r) => r.name.toLowerCase().includes(q) || String(r.mrp).includes(q)),
+        rows: g.rows.filter(
+          (r) =>
+            r.name.toLowerCase().includes(q) ||
+            String(r.mrp).includes(q)
+        ),
       }))
       .filter((g) => g.rows.length > 0);
   }, [grouped, search]);
 
-  const ordersTotal = useMemo(() => sumOrdersTotal(orders), [orders]);
+  const ordersTotal = useMemo(
+    () => sumOrdersTotal(orders),
+    [orders]
+  );
 
   // Counters sorted by sort_order; show carate numbers
   const uniqueCountersMap = useMemo(() => {
@@ -257,13 +476,33 @@ const OrderAssembly = () => {
     for (const o of orders) {
       const id = o?.counter_uuid;
       if (!id) continue;
+
+      // Prefer data from counters master (counterIndex)
+      const fromIdx = counterIndex.get(id);
+
       const title =
-        o.counter_title || o.counter_name || o.counter || o.counterCode || "Unnamed Counter";
-      const sortOrder = nnum(o.counter_sort_order, 9999);
+        fromIdx?.title ||
+        o.counter_title ||
+        o.counter_name ||
+        o.counter ||
+        o.counterCode ||
+        "Unnamed Counter";
+
+      // Prefer sort_order from counters master, then fall back to any order-level field
+      const sortOrderRaw =
+        fromIdx?.sort_order ??
+        o.counter_sort_order ??
+        o.sort_order ??
+        o.sortOrder ??
+        o.counterSortOrder ??
+        o.counter_sortorder ??
+        o.counterSortorder;
+
+      const sortOrder = nnum(sortOrderRaw, 9999);
       if (!map.has(id)) map.set(id, { title, sort_order: sortOrder });
     }
     return map;
-  }, [orders]);
+  }, [orders, counterIndex]);
 
   const uniqueCountersArr = useMemo(() => {
     const arr = Array.from(uniqueCountersMap, ([uuid, meta]) => ({
@@ -284,7 +523,10 @@ const OrderAssembly = () => {
       const list = out.get(cid) || [];
       const num = o?.invoice_number || o?.order_uuid || "";
       const total = getOrderGrand(o);
-      list.push({ number: String(num).replace(/^B-?/i, ""), total });
+      list.push({
+        number: String(num).replace(/^B-?/i, ""),
+        total,
+      });
       out.set(cid, list);
     }
     for (const [k, list] of out.entries()) {
@@ -302,88 +544,196 @@ const OrderAssembly = () => {
 
   const [selectedKey, setSelectedKey] = useState(null);
   useEffect(() => {
-    setSelectedKey((prev) => (prev && flattenedKeys.includes(prev) ? prev : flattenedKeys[0] || null));
+    setSelectedKey((prev) =>
+      prev && flattenedKeys.includes(prev)
+        ? prev
+        : flattenedKeys[0] || null
+    );
   }, [flattenedKeys]);
-
-  const moveCursorToNextLine = useCallback(() => {
-    if (!flattenedKeys.length) return;
-    const i = flattenedKeys.indexOf(selectedKey);
-    const nextKey = flattenedKeys[Math.min(i + 1, flattenedKeys.length - 1)];
-    setSelectedKey(nextKey);
-  }, [flattenedKeys, selectedKey]);
-
-  // Prevent auto-advance when we trigger a revert
-  const suppressAdvanceRef = useRef(false);
-  const onQueued = useCallback(() => {
-    if (!suppressAdvanceRef.current) {
-      moveCursorToNextLine();
-    }
-  }, [moveCursorToNextLine]);
 
   const selectedRowMeta = useMemo(() => {
     for (const g of filtered) {
       for (const r of g.rows) {
-        if (r.key === selectedKey) return { key: r.key, name: norm(r.name), mrp: nnum(r.mrp) };
+        if (r.key === selectedKey)
+          return {
+            key: r.key,
+            name: norm(r.name),
+            mrp: nnum(r.mrp),
+          };
       }
     }
     return { key: null, name: "", mrp: 0 };
   }, [filtered, selectedKey]);
 
-  const perCounterCounts = useMemo(() => {
-    const map = new Map();
-    if (!selectedRowMeta.key && !selectedRowMeta.name) return map;
+  // pcs per box for the currently selected item
+  const selectedConversion = useMemo(() => {
+    // default to 1 if anything is missing
+    if (!selectedRowMeta.key && !selectedRowMeta.name)
+      return 1;
 
+    // 1) try from itemsIdx by key (item_uuid / item_code)
+    const fromIdx = selectedRowMeta.key
+      ? itemsIdx.get(selectedRowMeta.key)
+      : null;
+    if (
+      fromIdx &&
+      Number.isFinite(fromIdx.conversion) &&
+      fromIdx.conversion > 0
+    ) {
+      return fromIdx.conversion;
+    }
+
+    // 2) fallback: search raw itemsMaster by name + mrp
+    const arr = Array.isArray(itemsMaster) ? itemsMaster : [];
+    if (selectedRowMeta.name && arr.length) {
+      const match = arr.find((it) => {
+        const nm = norm(
+          it?.item_title ||
+            it?.pronounce ||
+            it?.name ||
+            it?.title
+        );
+        const mrp = nnum(
+          it?.mrp ??
+            it?.MRP ??
+            it?.price_mrp ??
+            it?.Price_MRP
+        );
+        return (
+          nm === selectedRowMeta.name &&
+          mrp === selectedRowMeta.mrp
+        );
+      });
+      if (match) {
+        const conv = nnum(
+          match.conversion ??
+            match.CONVERSION ??
+            match.Conv ??
+            match.conv ??
+            match.pcs_in_box ??
+            match.pieces_in_box,
+          1
+        );
+        if (conv > 0) return conv;
+      }
+    }
+
+    return 1;
+  }, [selectedRowMeta, itemsIdx, itemsMaster]);
+
+  const perCounterCounts = useMemo(() => {
+    const intermediate = new Map();
+    if (!selectedRowMeta.key && !selectedRowMeta.name)
+      return intermediate;
+
+    const conv =
+      Number.isFinite(selectedConversion) &&
+      selectedConversion > 0
+        ? selectedConversion
+        : 1;
+
+    // 1) accumulate raw boxes + pieces per counter for the selected item
     for (const o of orders) {
       const cid = o?.counter_uuid;
       if (!cid) continue;
-      const lines = Array.isArray(o?.item_details) ? o.item_details : [];
-      let acc = map.get(cid) || { b: 0, p: 0 };
+      const lines = Array.isArray(o?.item_details)
+        ? o.item_details
+        : [];
+      let acc =
+        intermediate.get(cid) || {
+          boxTotal: 0,
+          pcsTotal: 0,
+        };
       for (const ln of lines) {
         const st = +ln?.status;
         if (st === 1 || st === 2 || st === 3) continue;
 
-        const id = String(ln?.item_uuid_v2 || ln?.item_uuid || ln?.item_code || ln?.ITEM_CODE || "");
+        const id = String(
+          ln?.item_uuid_v2 ||
+            ln?.item_uuid ||
+            ln?.item_code ||
+            ln?.ITEM_CODE ||
+            ""
+        );
         const nm = norm(getName(ln, itemsIdx));
         const mrp = nnum(getMRP(ln, itemsIdx));
-        const matchesById = id && selectedRowMeta.key && id === selectedRowMeta.key;
-        const matchesByNameMrp = nm && selectedRowMeta.name && nm === selectedRowMeta.name && mrp === selectedRowMeta.mrp;
+        const matchesById =
+          id && selectedRowMeta.key && id === selectedRowMeta.key;
+        const matchesByNameMrp =
+          nm &&
+          selectedRowMeta.name &&
+          nm === selectedRowMeta.name &&
+          mrp === selectedRowMeta.mrp;
+
         if (matchesById || matchesByNameMrp) {
-          acc.b += isNaN(+ln.b) ? 0 : +ln.b;
-          acc.p += isNaN(+ln.p) ? 0 : +ln.p;
+          const box = isNaN(+ln.b) ? 0 : +ln.b;
+          const pcs = isNaN(+ln.p) ? 0 : +ln.p;
+          acc.boxTotal += box;
+          acc.pcsTotal += pcs;
         }
       }
-      map.set(cid, acc);
+      intermediate.set(cid, acc);
     }
-    return map;
-  }, [orders, itemsIdx, selectedRowMeta]);
 
-  // Device updates
+    // 2) normalize using conversion so that pcs < conv for each counter
+    const result = new Map();
+    for (const [cid, acc] of intermediate.entries()) {
+      const totalPieces = acc.boxTotal * conv + acc.pcsTotal;
+      const normBoxes = Math.floor(totalPieces / conv);
+      const normPcs = totalPieces % conv;
+      result.set(cid, { b: normBoxes, p: normPcs });
+    }
+
+    return result;
+  }, [orders, itemsIdx, selectedRowMeta, selectedConversion]);
+
+  // increments on every action button click (used to trigger device updates)
+  const [deviceTriggerCounter, setDeviceTriggerCounter] = useState(0);
+
+  // Device updates – still uses b & p (now normalized) and same URLs
   const formatVal = ({ b = 0, p = 0 }) => {
     const B = Number.isFinite(+b) ? +b : 0;
     const P = Number.isFinite(+p) ? +p : 0;
     return B === 0 ? String(P) : `${B}x${P}`;
   };
+
   useEffect(() => {
     if (!uniqueCountersArr || uniqueCountersArr.length === 0) return;
+    if (!selectedRowMeta.key && !selectedRowMeta.name) return;
+
     const controller = new AbortController();
     const send = async () => {
       try {
         const reqs = uniqueCountersArr.map((c, idx) => {
-          const cp = perCounterCounts.get(c.uuid) ?? { b: 0, p: 0 };
+          const cp =
+            perCounterCounts.get(c.uuid) ?? { b: 0, p: 0 };
           const base = deviceBases[idx] || "";
           if (!base) return Promise.resolve();
           const valParam = formatVal(cp);
-          const finalUrl = `${base}val=${encodeURIComponent(valParam)}`;
-          return fetch(finalUrl, { method: "GET", mode: "no-cors", signal: controller.signal }).catch(() => {});
+          const finalUrl = `${base}val=${encodeURIComponent(
+            valParam
+          )}`;
+          return fetch(finalUrl, {
+            method: "GET",
+            mode: "no-cors",
+            signal: controller.signal,
+          }).catch(() => {});
         });
         await Promise.all(reqs);
       } catch {}
     };
     send();
     return () => controller.abort();
-  }, [selectedKey, uniqueCountersArr, perCounterCounts, deviceBases]);
+  }, [
+    deviceTriggerCounter,
+    uniqueCountersArr,
+    perCounterCounts,
+    deviceBases,
+    selectedRowMeta,
+  ]);
 
-  // Processing hook (uses onQueued wrapper)
+  // Processing hook – NO auto-move now
+  const onQueued = useCallback(() => {}, []);
   const {
     queueActionForSelectedItem,
     save,
@@ -393,46 +743,496 @@ const OrderAssembly = () => {
     orders,
     setOrders,
     selectedRowMeta,
-    onQueued, // wrapped to respect suppressAdvanceRef
+    onQueued,
   });
 
-  /* ---- Revert logic: target exact row, no auto-advance ---- */
-  const [pendingRevertKey, setPendingRevertKey] = useState(null);
-  const revertActionForItemKey = (key) => {
-    if (!key) return;
-    suppressAdvanceRef.current = true; // don't move selection on revert
-    setPendingRevertKey(key);
-    setSelectedKey(key);
-  };
-  // run the revert only after selection equals the target key
-  useEffect(() => {
-    if (!pendingRevertKey) return;
-    if (selectedKey !== pendingRevertKey) return;
-    // now the hook sees the right selectedRowMeta
-    queueActionForSelectedItem(0); // 0 = clear status
-    // release suppression on next tick
-    setTimeout(() => {
-      suppressAdvanceRef.current = false;
-      setPendingRevertKey(null);
-    }, 0);
-  }, [pendingRevertKey, selectedKey, queueActionForSelectedItem]);
+  // we run actions only after the correct row is selected
+  const pendingActionRef = useRef(null);
+  const [pendingActionToken, setPendingActionToken] = useState(0);
 
-  // Row highlight colors
+    // SAVE helper: just call the hook's save (buffer already knows changes)
+  const handleAssemblySave = useCallback(() => {
+    save();
+  }, [save]);
+
+  // whenever we have a pending action, process it (after selection is updated)
+  useEffect(() => {
+    const pending = pendingActionRef.current;
+    if (!pending) return;
+    queueActionForSelectedItem(pending.status);
+    pendingActionRef.current = null;
+  }, [pendingActionToken, queueActionForSelectedItem]);
+
+
+  // Row highlight colors (based only on status, not on selection)
   const rowHighlight = useMemo(() => {
     const map = {};
     for (const g of filtered) {
       for (const r of g.rows) {
         const k = r.key;
         const st = previewStatusByItemKey?.get?.(k);
-        if (st === 1) map[k] = "green";       // COMPLETE
-        else if (st === 2) map[k] = "yellow"; // HOLD
-        else if (st === 3) map[k] = "red";    // CANCEL
-        else if (k === selectedKey) map[k] = "blue"; // current cursor
-        else map[k] = "white";                // untouched
+        if (st === 1) map[k] = "complete"; // green
+        else if (st === 2) map[k] = "hold"; // yellow
+        else if (st === 3) map[k] = "cancel"; // red
+        else map[k] = "none"; // normal
       }
     }
     return map;
-  }, [filtered, previewStatusByItemKey, selectedKey]);
+  }, [filtered, previewStatusByItemKey]);
+
+const applyStatusForKey = useCallback(
+    (key, status) => {
+      if (!key) return;
+      // store which key & status we want to apply
+      pendingActionRef.current = { key, status };
+      // update selection so selectedRowMeta matches this key
+      setSelectedKey(key);
+      // trigger the effect that will call queueActionForSelectedItem
+      setPendingActionToken((t) => t + 1);
+      // also trigger device updates
+      setDeviceTriggerCounter((c) => c + 1);
+    },
+    [setSelectedKey, setPendingActionToken, setDeviceTriggerCounter]
+  );
+
+
+
+
+  // COMPLETE toggle
+  const toggleCompleteForItemKey = useCallback(
+    (key) => {
+      const current = previewStatusByItemKey?.get?.(key) ?? 0;
+      const next = current === 1 ? 0 : 1; // same button → revert
+      applyStatusForKey(key, next);
+    },
+    [previewStatusByItemKey, applyStatusForKey]
+  );
+
+  // HOLD toggle
+  const holdItemByKey = useCallback(
+    (key) => {
+      const current = previewStatusByItemKey?.get?.(key) ?? 0;
+      const next = current === 2 ? 0 : 2;
+      applyStatusForKey(key, next);
+    },
+    [previewStatusByItemKey, applyStatusForKey]
+  );
+
+  // CANCEL toggle
+  const cancelItemByKey = useCallback(
+    (key) => {
+      const current = previewStatusByItemKey?.get?.(key) ?? 0;
+      const next = current === 3 ? 0 : 3;
+      applyStatusForKey(key, next);
+    },
+    [previewStatusByItemKey, applyStatusForKey]
+  );
+
+  /* --------------------------- RENDER: MOBILE --------------------------- */
+  if (isMobile || isMobileAssembly) {
+    return (
+      <div className="right-side mobile-assembly">
+        {/* Combined header with tabs + SAVE */}
+        {/* TOP HEADER (new layout) */}
+        <div
+          className="mobile-assembly-header"
+          style={{
+            padding: "10px 12px",
+            borderBottom: "1px solid #e5e7eb",
+            background: "#ffffff",
+          }}
+        >
+          {/* Row 1: Close  ......  (xx pending) SAVE */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              marginBottom: 10,
+            }}
+          >
+            {/* Close on the left */}
+            <button
+              type="button"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "Changes will get discarded. Continue?"
+                  )
+                ) {
+                  window.history.back();
+                }
+              }}
+              style={{
+                color: "#DC2626",
+                fontWeight: 600,
+                fontSize: 14,
+                border: "none",
+                background: "transparent",
+              }}
+            >
+              Close
+            </button>
+
+            <div
+              style={{
+                marginLeft: "auto",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              {pendingCount > 0 && (
+                <span
+                  style={{
+                    fontSize: 14,
+                    color: "#B45309",
+                    background: "#FEF3C7",
+                    padding: "4px 8px",
+                    borderRadius: 6,
+                  }}
+                >
+                  {pendingCount} pending
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={handleAssemblySave}
+                style={{
+                  background: "#10B981",
+                  color: "white",
+                  padding: "6px 16px",
+                  borderRadius: 8,
+                  border: "none",
+                  fontWeight: 700,
+                  fontSize: 15,
+                }}
+              >
+                SAVE
+              </button>
+            </div>
+          </div>
+
+          {/* Row 2: [Carate] [Items]  Search */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            {/* Tabs */}
+            <div
+              style={{
+                display: "flex",
+                gap: 4,
+                background: "#e5e7eb",
+                borderRadius: 999,
+                padding: 2,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setMobileTab("carate")}
+                style={{
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  border: "none",
+                  minWidth: 80,
+                  background:
+                    mobileTab === "carate"
+                      ? "#111827"
+                      : "transparent",
+                  color:
+                    mobileTab === "carate"
+                      ? "#f9fafb"
+                      : "#4b5563",
+                  borderRadius: 999,
+                }}
+              >
+                Carate
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileTab("items")}
+                style={{
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  border: "none",
+                  minWidth: 80,
+                  background:
+                    mobileTab === "items"
+                      ? "#111827"
+                      : "transparent",
+                  color:
+                    mobileTab === "items"
+                      ? "#f9fafb"
+                      : "#4b5563",
+                  borderRadius: 999,
+                }}
+              >
+                Items
+              </button>
+            </div>
+
+            {/* Search bar (takes remaining ~70%) */}
+            <input
+              type="text"
+              placeholder="Search..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                flex: 1,
+                height: 32,
+                borderRadius: 8,
+                border: "1px solid #d1d5db",
+                padding: "0 10px",
+                fontSize: 13,
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Body: either Carate or Item Summary */}
+        <div
+          className="assembly-layout-mobile"
+          style={{
+            height: "calc(100vh - 44px)",
+            overflowY: "auto",
+          }}
+        >
+          {mobileTab === "carate" ? (
+            <section className="panel">
+              <div className="panel-body">
+                <div className="carate-list">
+                  {uniqueCountersArr.map((c, idx) => {
+                    const bp =
+                      perCounterCounts.get(c.uuid) ||
+                      { b: 0, p: 0 };
+                    const chips =
+                      ordersByCounter.get(c.uuid) || [];
+                    return (
+                      <div
+                        key={c.uuid}
+                        className="carate-item"
+                      >
+                        <div className="carate-tube">
+                          <div
+                            className="carate-fill"
+                            style={{ width: "0%" }}
+                          />
+                          <div className="carate-text">
+                            {idx + 1}. {c.title}
+                            <span className="carate-orders">
+                              {chips.map((o) => (
+                                <span
+                                  key={o.number}
+                                  className="chip"
+                                >
+                                  (B-{o.number} ₹
+                                  {Math.round(o.total)})
+                                </span>
+                              ))}
+                            </span>
+                          </div>
+                          <div className="carate-count">
+                            {bp.b} : {bp.p}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+          ) : (
+            <section className="panel right-pane">
+              <div
+                className="summary"
+                style={{
+                  paddingBottom: 64,
+                  maxHeight: "calc(100vh - 110px)",
+                  overflowY: "auto",
+                }}
+              >
+                {/* Grouped items */}
+                {filtered.map((group) => (
+                  <div
+                    key={group.category}
+                    className="mobile-category-block"
+                    style={{ marginBottom: 8 }}
+                  >
+                    <div
+                      className="mobile-category-header"
+                      style={{
+                        background: "#e5f3dc",
+                        padding: "6px 8px",
+                        fontWeight: 600,
+                        fontSize: 13,
+                      }}
+                    >
+                      {group.category}
+                    </div>
+
+                    {group.rows.map((row, idx) => {
+                      const statusKey = rowHighlight[row.key];
+
+                      let rowBg = "#ffffff";
+                      if (statusKey === "complete") rowBg = "#ecfdf3"; // light green
+                      else if (statusKey === "hold") rowBg = "#FFFBEB"; // light yellow
+                      else if (statusKey === "cancel") rowBg = "#FEE2E2"; // light red
+
+                      return (
+                        <div
+                          key={row.key}
+                          className="mobile-item-row"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            padding: "6px 6px",
+                            borderBottom:
+                              "1px solid #f3f4f6",
+                            backgroundColor: rowBg,
+                            gap: 6,
+                          }}
+                        >
+                          {/* Delete / Cancel on extreme left */}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              cancelItemByKey(row.key)
+                            }
+                            className="btn btn-xs action-danger"
+                            style={{
+                              minWidth: 30,
+                              height: 30,
+                              borderRadius: 6,
+                              fontSize: 14,
+                            }}
+                          >
+                            🗑
+                          </button>
+
+                          {/* Main info */}
+                          <div
+                            style={{
+                              flex: 1,
+                              minWidth: 0,
+                            }}
+                            onClick={() =>
+                              setSelectedKey(row.key)
+                            }
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 6,
+                                marginBottom: 2,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: 12,
+                                  color: "#6b7280",
+                                  width: 18,
+                                }}
+                              >
+                                {idx + 1}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: 13,
+                                  fontWeight: 600,
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow:
+                                    "ellipsis",
+                                }}
+                              >
+                                {row.name}
+                              </span>
+                            </div>
+                            <div
+                              style={{
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: 6,
+                                fontSize: 11,
+                                color: "#6b7280",
+                              }}
+                            >
+                              <span>MRP: {row.mrp}</span>
+                              <span>
+                                Qty: {row.totalB} :{" "}
+                                {row.totalP}
+                              </span>
+                              <span>
+                                Orders:{" "}
+                                {row.orderCount}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Hold + Tick on right side (side by side) */}
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "row",
+                              gap: 4,
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() =>
+                                holdItemByKey(row.key)
+                              }
+                              className="btn btn-xs action-warn"
+                              style={{
+                                minWidth: 60,
+                                height: 26,
+                                fontSize: 11,
+                                borderRadius: 999,
+                              }}
+                            >
+                              HOLD
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                toggleCompleteForItemKey(
+                                  row.key
+                                )
+                              }
+                              className="btn btn-xs action-success"
+                              style={{
+                                minWidth: 60,
+                                height: 32,
+                                fontSize: 15,
+                                fontWeight: 700,
+                                borderRadius: 999,
+                                padding: "0 14px",
+                              }}
+                            >
+                              ✓
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  /* --------------------------- RENDER: DESKTOP --------------------------- */
+  let globalIndex = 0;
 
   return (
     <>
@@ -440,17 +1240,49 @@ const OrderAssembly = () => {
       <div className="right-side">
         <Header />
 
-        <div className="page-header px-6 pt-2 pb-1" style={{ borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center" }}>
+        <div
+          className="page-header px-6 pt-2 pb-1"
+          style={{
+            borderBottom: "1px solid #e5e7eb",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
           <span className="text-xl font-bold text-black flex items-center gap: 2">
-            <span role="img" aria-label="tools">🛠️</span> Order Assembly
+            <span role="img" aria-label="tools">
+              🛠️
+            </span>{" "}
+            Order Assembly
           </span>
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+          <div
+            style={{
+              marginLeft: "auto",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <span className="text-sm font-semibold mr-2">
+              Orders Total: ₹ {ordersTotal}
+            </span>
             {pendingCount > 0 && (
-              <span className="text-xs px-2 py-1 rounded-md" style={{ background: "#FEF3C7", color: "#92400E" }}>
+              <span
+                className="text-xs px-2 py-1 rounded-md"
+                style={{
+                  background: "#FEF3C7",
+                  color: "#92400E",
+                }}
+              >
                 {pendingCount} pending
               </span>
             )}
-            <button className="btn btn-lg action-success" type="button" onClick={save}>SAVE</button>
+            <button
+              className="btn btn-lg action-success"
+              type="button"
+              onClick={handleAssemblySave}
+            >
+              SAVE
+            </button>
           </div>
         </div>
 
@@ -458,27 +1290,45 @@ const OrderAssembly = () => {
         <div className="assembly-layout">
           {/* LEFT: Carate Progress */}
           <section className="panel">
-            <div className="panel-header">Carate Progress (Counters = {uniqueCountersArr.length})</div>
+            <div className="panel-header">
+              Carate Progress (Counters ={" "}
+              {uniqueCountersArr.length})
+            </div>
             <div className="panel-body">
               <div className="carate-list">
                 {uniqueCountersArr.map((c, idx) => {
-                  const bp = perCounterCounts.get(c.uuid) || { b: 0, p: 0 };
-                  const chips = ordersByCounter.get(c.uuid) || [];
+                  const bp =
+                    perCounterCounts.get(c.uuid) ||
+                    { b: 0, p: 0 };
+                  const chips =
+                    ordersByCounter.get(c.uuid) || [];
                   return (
-                    <div key={c.uuid} className="carate-item">
+                    <div
+                      key={c.uuid}
+                      className="carate-item"
+                    >
                       <div className="carate-tube">
-                        <div className="carate-fill" style={{ width: "0%" }} />
+                        <div
+                          className="carate-fill"
+                          style={{ width: "0%" }}
+                        />
                         <div className="carate-text">
                           {idx + 1}. {c.title}
                           <span className="carate-orders">
                             {chips.map((o) => (
-                              <span key={o.number} className="chip">
-                                (B-{o.number} ₹{Math.round(o.total)})
+                              <span
+                                key={o.number}
+                                className="chip"
+                              >
+                                (B-{o.number} ₹
+                                {Math.round(o.total)})
                               </span>
                             ))}
                           </span>
                         </div>
-                        <div className="carate-count">{bp.b} : {bp.p}</div>
+                        <div className="carate-count">
+                          {bp.b} : {bp.p}
+                        </div>
                       </div>
                     </div>
                   );
@@ -487,37 +1337,248 @@ const OrderAssembly = () => {
             </div>
           </section>
 
-          {/* RIGHT: Item Summary + sticky actions */}
+          {/* RIGHT: Item Summary with per-row actions */}
           <section className="panel right-pane">
             <div className="panel-header">
               <div className="flex-row">
                 <span>Item Summary</span>
-                <span className="ml-auto text-sm font-semibold">Orders Total: ₹ {ordersTotal}</span>
               </div>
             </div>
 
-            <div className="summary">
-              <ItemSummaryPane
-                search={search}
-                setSearch={setSearch}
-                grouped={filtered}
-                selectedKey={selectedKey}
-                onRowClick={setSelectedKey}
-                rowHighlight={rowHighlight}
-                statusByKey={previewStatusByItemKey}
-                onRevert={revertActionForItemKey}
-              />
-            </div>
+            <div
+              className="summary"
+              style={{
+                padding: "8px",
+                maxHeight: "calc(100vh - 140px)",
+                overflowY: "auto",
+              }}
+            >
+              {/* Search bar */}
+              <div style={{ marginBottom: 8 }}>
+                <input
+                  type="text"
+                  placeholder="Search item or MRP..."
+                  value={search}
+                  onChange={(e) =>
+                    setSearch(e.target.value)
+                  }
+                  style={{
+                    width: "100%",
+                    borderRadius: 8,
+                    border: "1px solid #d1d5db",
+                    padding: "6px 10px",
+                    fontSize: 14,
+                  }}
+                />
+              </div>
 
-            <div className="sticky-actions">
-              <div className="actions-body" style={{ height: "auto", padding: 0 }}>
-                <button className="btn btn-lg action-danger" type="button" onClick={() => queueActionForSelectedItem(3)}>CANCEL</button>
-                <button className="btn btn-lg action-warn"   type="button" onClick={() => queueActionForSelectedItem(2)}>HOLD</button>
-                <button className="btn btn-lg action-success"type="button" onClick={() => queueActionForSelectedItem(1)}>COMPLETE</button>
-              </div>
-              <div className="text-xs mt-2" style={{ color: "#6b7280" }}>
-                After clicking a button, the cursor moves to the next line. Colors: <b>Green</b>=Complete, <b>Yellow</b>=Hold, <b>Red</b>=Cancel, <b>Blue</b>=current selection.
-              </div>
+              {filtered.map((group) => (
+                <div
+                  key={group.category}
+                  style={{
+                    marginBottom: 12,
+                    borderRadius: 4,
+                    overflow: "hidden",
+                    border: "1px solid #e5e7eb",
+                  }}
+                >
+                  {/* Category header */}
+                  <div
+                    style={{
+                      background: "#e5f3dc",
+                      padding: "6px 8px",
+                      fontWeight: 600,
+                      fontSize: 13,
+                    }}
+                  >
+                    {group.category}
+                  </div>
+
+                  {/* Table header */}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "40px 1fr 70px 100px 100px 160px",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      background: "#f9fafb",
+                      borderBottom:
+                        "1px solid #e5e7eb",
+                    }}
+                  >
+                    <div style={{ padding: "4px 6px" }}>
+                      Sr.
+                    </div>
+                    <div style={{ padding: "4px 6px" }}>
+                      Item
+                    </div>
+                    <div style={{ padding: "4px 6px" }}>
+                      MRP
+                    </div>
+                    <div style={{ padding: "4px 6px" }}>
+                      Qty (B : P)
+                    </div>
+                    <div style={{ padding: "4px 6px" }}>
+                      Orders
+                    </div>
+                    <div style={{ padding: "4px 6px" }}>
+                      Action
+                    </div>
+                  </div>
+
+                  {group.rows.map((row) => {
+                    const statusKey = rowHighlight[row.key];
+                    const sr = ++globalIndex;
+
+                    let rowBg = "#ffffff";
+                    if (statusKey === "complete") rowBg = "#ecfdf3"; // light green
+                    else if (statusKey === "hold") rowBg = "#FFFBEB"; // light yellow
+                    else if (statusKey === "cancel") rowBg = "#FEE2E2"; // light red
+
+                    return (
+                      <div
+                        key={row.key}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns:
+                            "40px 1fr 70px 100px 100px 160px",
+                          fontSize: 12,
+                          borderBottom:
+                            "1px solid #f3f4f6",
+                          backgroundColor: rowBg,
+                        }}
+                      >
+                        <div
+                          style={{
+                            padding: "6px 6px",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          {sr}
+                        </div>
+                        <div
+                          style={{
+                            padding: "6px 6px",
+                            cursor: "pointer",
+                          }}
+                          onClick={() =>
+                            setSelectedKey(row.key)
+                          }
+                        >
+                          <div
+                            style={{
+                              fontWeight: 600,
+                              marginBottom: 2,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow:
+                                "ellipsis",
+                            }}
+                          >
+                            {row.name}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: "#6b7280",
+                            }}
+                          >
+                            MRP: {row.mrp} &nbsp; Qty:{" "}
+                            {row.totalB} : {row.totalP}
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            padding: "6px 6px",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          {row.mrp}
+                        </div>
+                        <div
+                          style={{
+                            padding: "6px 6px",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          {row.totalB} : {row.totalP}
+                        </div>
+                        <div
+                          style={{
+                            padding: "6px 6px",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          {row.orderCount}
+                        </div>
+                        <div
+                          style={{
+                            padding: "6px 6px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() =>
+                              cancelItemByKey(row.key)
+                            }
+                            className="btn btn-xs action-danger"
+                            style={{
+                              minWidth: 30,
+                              height: 26,
+                              borderRadius: 6,
+                              fontSize: 14,
+                            }}
+                          >
+                            🗑
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              holdItemByKey(row.key)
+                            }
+                            className="btn btn-xs action-warn"
+                            style={{
+                              minWidth: 60,
+                              height: 26,
+                              fontSize: 11,
+                              borderRadius: 999,
+                            }}
+                          >
+                            HOLD
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              toggleCompleteForItemKey(
+                                row.key
+                              )
+                            }
+                            className="btn btn-xs action-success"
+                            style={{
+                              minWidth: 60,
+                              height: 32,
+                              fontSize: 15,
+                              fontWeight: 700,
+                              borderRadius: 999,
+                              padding: "0 14px",
+                            }}
+                          >
+                            ✓
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </section>
         </div>

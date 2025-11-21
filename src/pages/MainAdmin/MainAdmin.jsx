@@ -1071,18 +1071,85 @@ TOTAL: ${amounts}
                                                                         : "Show Pending Payments"}
                                                         </button>
                                                         {selectOrder && selectedOrder?.length ? (
-                                                                <button
-                                                                        className="simple_Logout_button"
-                                                                        onClick={() => {
-                                                                                sessionStorage.setItem(
-                                                                                        "orderAssemblySelectedOrders",
-                                                                                        JSON.stringify(selectedOrder)
-                                                                                )
-                                                                                navigate("/admin/orderAssembly", { state: { orders: selectedOrder } })
-                                                                        }}
-                                                                >
-                                                                        Order Assembly
-                                                                </button>
+                                                              <>
+  <>
+  <button
+    type="button"
+    className="simple_Logout_button"
+    onClick={() => {
+      sessionStorage.setItem(
+        "orderAssemblySelectedOrders",
+        JSON.stringify(selectedOrder)
+      );
+      navigate("/admin/orderAssembly", { state: { orders: selectedOrder } });
+    }}
+  >
+    Order Assembly
+  </button>
+
+  <button
+  type="button"
+  className="simple_Logout_button"
+  onClick={() => {
+    if (!selectedOrder || selectedOrder.length === 0) {
+      alert("Please select at least 1 order.");
+      return;
+    }
+
+    // ✅ allow only Processing (stage === 1)
+    const nonProcessing = selectedOrder.find((o) => {
+      const statusArr = o.status || o.Status || [];
+      const last = statusArr[statusArr.length - 1] || {};
+
+      // stage might be in different keys, so we try a few
+      const rawStage =
+        last.stage ??
+        last.Stage ??
+        last.stage_id ??
+        last.status ??
+        last.Status;
+
+      const stage = Number(rawStage);
+
+      // if stage is missing/invalid, don't block (to avoid false positives)
+      if (!rawStage || Number.isNaN(stage)) {
+        return false;
+      }
+
+      // block if it is clearly not Processing
+      return stage !== 1;
+    });
+
+    if (nonProcessing) {
+      const orderNo =
+        nonProcessing.order_number ||
+        nonProcessing.order_no ||
+        nonProcessing.OrderNo ||
+        nonProcessing.order_uuid ||
+        "";
+      alert(
+        `Only Processing Orders Allowed (problem: ${orderNo || "unknown"})`
+      );
+      return;
+    }
+
+    sessionStorage.setItem(
+      "orderAssemblySelectedOrders",
+      JSON.stringify(selectedOrder)
+    );
+    navigate("/admin/assembly-grouping", { state: { orders: selectedOrder } });
+  }}
+>
+  Assembly Grouping
+</button>
+
+
+</>
+
+
+</>
+
+																
                                                         ) : null}
                                                 </div>
                                         )}

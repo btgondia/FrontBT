@@ -97,6 +97,8 @@ import PurchaseRate from "./pages/Reports/PurchaseRate"
 import GSTReturnsReport from "./pages/Reports/GSTReturnsReport"
 import HSNCode from "./pages/Master/HsnCode"
 import TripsModal from "./pages/QuikAccess/TripsModal"
+import AssemblyGrouping from "./pages/MainAdmin/AssemblyGrouping";
+
 
 /* ⭐ NEW: Assembly Devices page */
 import AssemblyDevices from "./pages/MainAdmin/AssemblyDevices"
@@ -313,7 +315,7 @@ function App() {
 								</MobileLayout>
 							}
 						/>
-						<Route
+											<Route
 							path="/users/delivery/:trip_uuid"
 							element={
 								<MobileLayout>
@@ -329,6 +331,15 @@ function App() {
 								</MobileLayout>
 							}
 						/>
+						{/* NEW: Assembly view for all orders in a trip (mobile) */}
+						<Route
+							path="/users/processing/:trip_uuid/assembly"
+							element={
+								<MobileLayout>
+									<OrderAssembly />
+								</MobileLayout>
+							}
+						/>
 						<Route
 							path="/users/checking/:trip_uuid/:order_uuid"
 							element={
@@ -337,6 +348,7 @@ function App() {
 								</MobileLayout>
 							}
 						/>
+
 						<Route
 							path="/users/delivery/:trip_uuid/:order_uuid"
 							element={
@@ -396,6 +408,7 @@ function App() {
 						<Route path="/admin/AddOutStanding" element={<AddOutStanding />} />
 						<Route path="/admin/addStock" element={<AddStock />} />
 						<Route path="/admin/orderAssembly" element={<OrderAssembly />} />
+						<Route path="/admin/assembly-grouping" element={<AssemblyGrouping />} />
 						<Route path="/admin/adjustStock" element={<AdjustStock />} />
 						<Route path="/admin/userActivity" element={<UserActivity />} />
 						<Route path="/admin/unknownEntry" element={<UknownVouchers />} />

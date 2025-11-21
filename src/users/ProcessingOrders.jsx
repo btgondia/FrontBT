@@ -116,56 +116,66 @@ const ProcessingOrders = () => {
 		db.close()
 	}
 
-	const getTripOrders = async () => {
-		setLoading(true)
-		try {
-			const db = await openDB("BT", +localStorage.getItem("IDBVersion") || 1)
-			let tx = db.transaction("items", "readonly").objectStore("items")
-			let IDBItems = await tx.getAll()
-			setItems(IDBItems)
-			db.close()
-			const response = await axios({
-				method: "post",
-				url: `/orders/${
-					Location.pathname.includes("checking")
-						? "GetOrderCheckingList"
-						: Location.pathname.includes("delivery")
-						? "GetOrderDeliveryList"
-						: "GetOrderProcessingList"
-				}`,
-				data: {
-					trip_uuid: params.trip_uuid,
-					user_uuid: localStorage.getItem("user_uuid")
-				}
-			})
-			if (response.data.success) {
-				let data = response.data.result
+const getTripOrders = async () => {
+    setLoading(true)
+    try {
+        const db = await openDB("BT", +localStorage.getItem("IDBVersion") || 1)
+        let tx = db.transaction("items", "readonly").objectStore("items")
+        let IDBItems = await tx.getAll()
+        setItems(IDBItems)
+        db.close()
+        const response = await axios({
+            method: "post",
+            url: `/orders/${
+                Location.pathname.includes("checking")
+                    ? "GetOrderCheckingList"
+                    : Location.pathname.includes("delivery")
+                    ? "GetOrderDeliveryList"
+                    : "GetOrderProcessingList"
+            }`,
+            data: {
+                trip_uuid: params.trip_uuid,
+                user_uuid: localStorage.getItem("user_uuid")
+            }
+        })
+        if (response.data.success) {
+            let data = response.data.result
 
-				if (response.data?.mobileOrderSequence === 1)
-					data = data.sort((a, b) => (+a.sort_order || 0) - (+b.sort_order || 0))
-				else data.sort((a, b) => a.time_1 - b.time_1)
+            if (response.data?.mobileOrderSequence === 1)
+                data = data.sort((a, b) => (a?.counter_name || "")?.localeCompare(b?.counter_name || ""))
 
-				data = data.sort((a, b) => (+b.priority || 0) - +a.priority)
-				let sortedOrders = data.reduce(
-					(result, order) =>
-						!result.some(i => i.counter_uuid === order.counter_uuid)
-							? result.concat(data.filter(i => i.counter_uuid === order.counter_uuid))
-							: result,
+            let sortedOrders = data.sort(
+                (a, b) =>
+                    +b?.order_grandtotal - +a?.order_grandtotal ||
+                    +b?.order_approx_qty - +a?.order_approx_qty
+            )
+            setOrders(sortedOrders)
+        }
+    } catch (error) {
+        
+    }
+    setLoading(false)
+}
 
-					[]
-				)
-				setOrders(sortedOrders)
-			}
-		} catch (error) {
-			
-		}
-		setLoading(false)
-	}
+const openAssemblyOrders = () => {
+  if (!orders || !orders.length) return
 
-	useEffect(() => {
-		getTripOrders()
-		getIndexedDbData()
-	}, [])
+  // ✅ Go to the USER assembly route, not admin
+  Navigate(`/users/processing/${params.trip_uuid}/assembly`, {
+    state: {
+      orders,
+      itemsMaster: items,
+      categoriesMaster: itemCategories
+    }
+  })
+}
+
+
+useEffect(() => {
+    getTripOrders()
+    getIndexedDbData()
+}, [])
+
 
 	useEffect(() => {
 		if (Location.pathname.includes("delivery") && selectedOrder && !checking) {
@@ -698,54 +708,71 @@ const ProcessingOrders = () => {
 					""
 				)}
 			</nav>
-			{dropdown ? (
-				<div
-					id="customer-details-dropdown"
-					className={"page1 flex"}
-					style={{ top: "40px", flexDirection: "column", zIndex: "200" }}
-					onMouseLeave={() => setDropDown(false)}
-				>
-					{Location.pathname.includes("checking") ? (
-						<button
-							className="simple_Logout_button"
-							onClick={() => {
-								setHoldPopup("Checking Summary")
-								getTripOrders()
-								setDropDown(false)
-							}}
-						>
-							Summary
-						</button>
-					) : window.location.pathname.includes("processing") ? (
-						<>
-							<button
-								className="simple_Logout_button"
-								onClick={() => {
-									setHoldPopup("Summary")
-									getTripOrders()
-									setDropDown(false)
-								}}
-							>
-								Summary
-							</button>
-							<button
-								className="simple_Logout_button"
-								onClick={() => {
-									setHoldPopup("Hold")
-									getTripOrders()
-									setDropDown(false)
-								}}
-							>
-								Hold
-							</button>
-						</>
-					) : (
-						""
-					)}
-				</div>
-			) : (
-				""
-			)}
+	{dropdown ? (
+  <div
+    id="customer-details-dropdown"
+    className={"page1 flex"}
+    style={{ top: "40px", flexDirection: "column", zIndex: "200" }}
+    onMouseLeave={() => setDropDown(false)}
+  >
+    {Location.pathname.includes("checking") ? (
+      // CHECKING — Only Summary
+      <button
+        className="simple_Logout_button"
+        onClick={() => {
+          setHoldPopup("Checking Summary");
+          getTripOrders();
+          setDropDown(false);
+        }}
+      >
+        Summary
+      </button>
+    ) : Location.pathname.includes("processing") ? (
+      // PROCESSING — Summary, Hold, Assembly Orders
+      <>
+        <button
+          className="simple_Logout_button"
+          onClick={() => {
+            setHoldPopup("Summary");
+            getTripOrders();
+            setDropDown(false);
+          }}
+        >
+          Summary
+        </button>
+
+        <button
+          className="simple_Logout_button"
+          onClick={() => {
+            setHoldPopup("Hold");
+            getTripOrders();
+            setDropDown(false);
+          }}
+        >
+          Hold
+        </button>
+
+               <button
+  className="simple_Logout_button"
+  onClick={() => {
+    setDropDown(false)
+    openAssemblyOrders()
+  }}
+>
+  Assembly Orders
+</button>
+
+
+      </>
+    ) : (
+      ""
+    )}
+  </div>
+) : (
+  ""
+)}
+
+
 			{printInvicePopup ? (
 				<>
 					<div className="overlay" style={{ zIndex: 9999999999 }}>
