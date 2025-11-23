@@ -12,6 +12,7 @@ import axios from "axios";
 import { openDB } from "idb";
 import "./style.css";
 import { useAssemblyProcessing } from "./AssemblyOrderProcessing";
+import { MdClose } from "react-icons/md";
 
 const ORDER_ASSEMBLY_SS_KEY = "orderAssemblySelectedOrders";
 
@@ -246,7 +247,7 @@ const OrderAssembly = () => {
 
   /* ---------- MOBILE VIEW DETECTION ---------- */
   const [isMobile, setIsMobile] = useState(false);
-  const [mobileTab, setMobileTab] = useState("items"); // "items" | "carate"
+  const [mobileTab, setMobileTab] = useState("items"); // "items" | "crate"
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -496,7 +497,7 @@ const OrderAssembly = () => {
     [orders]
   );
 
-  // Counters sorted by sort_order; show carate numbers
+  // Counters sorted by sort_order; show crate numbers
   const uniqueCountersMap = useMemo(() => {
     const map = new Map();
     for (const o of orders) {
@@ -934,7 +935,7 @@ const OrderAssembly = () => {
             </div>
           </div>
 
-          {/* Row 2: [Carate] [Items]  Search */}
+          {/* Row 2: [Crate] [Items]  Search */}
           <div
             style={{
               display: "flex",
@@ -954,7 +955,7 @@ const OrderAssembly = () => {
             >
               <button
                 type="button"
-                onClick={() => setMobileTab("carate")}
+                onClick={() => setMobileTab("crate")}
                 style={{
                   padding: "6px 12px",
                   fontSize: 12,
@@ -962,17 +963,17 @@ const OrderAssembly = () => {
                   border: "none",
                   minWidth: 80,
                   background:
-                    mobileTab === "carate"
+                    mobileTab === "crate"
                       ? "#111827"
                       : "transparent",
                   color:
-                    mobileTab === "carate"
+                    mobileTab === "crate"
                       ? "#f9fafb"
                       : "#4b5563",
                   borderRadius: 999,
                 }}
               >
-                Carate
+                Crates
               </button>
               <button
                 type="button"
@@ -1016,18 +1017,18 @@ const OrderAssembly = () => {
           </div>
         </div>
 
-        {/* Body: either Carate or Item Summary */}
+        {/* Body: either Crate or Item Summary */}
         <div
           className="assembly-layout-mobile"
           style={{
-            height: "calc(100vh - 44px)",
+            height: "calc(100vh - 92px)",
             overflowY: "auto",
           }}
         >
-          {mobileTab === "carate" ? (
+          {mobileTab === "crate" ? (
             <section className="panel">
               <div className="panel-body">
-                <div className="carate-list">
+                <div className="crate-list">
                   {uniqueCountersArr.map((c, idx) => {
                     const bp =
                       perCounterCounts.get(c.uuid) ||
@@ -1037,28 +1038,26 @@ const OrderAssembly = () => {
                     return (
                       <div
                         key={c.uuid}
-                        className="carate-item"
+                        className="crate-item"
                       >
-                        <div className="carate-tube">
-                          <div
-                            className="carate-fill"
-                            style={{ width: "0%" }}
-                          />
-                          <div className="carate-text">
-                            {idx + 1}. {c.title}
-                            <span className="carate-orders">
+                        <div className="crate-tube">
+                          <div style={{overflow:'auto'}}>
+                            <div className="crate-text">
+                              {idx + 1}. {c.title}
+                            </div>
+                            <div className="crate-orders">
                               {chips.map((o) => (
                                 <span
                                   key={o.number}
                                   className="chip"
                                 >
-                                  (B-{o.number} ₹
-                                  {Math.round(o.total)})
+                                  B-{o.number} • ₹
+                                  {Math.round(o.total)}
                                 </span>
                               ))}
-                            </span>
+                            </div>
                           </div>
-                          <div className="carate-count">
+                          <div className="crate-count">
                             {bp.b} : {bp.p}
                           </div>
                         </div>
@@ -1127,13 +1126,18 @@ const OrderAssembly = () => {
                             }
                             className="btn btn-xs action-danger"
                             style={{
-                              minWidth: 30,
+                              width: 30,
                               height: 30,
                               borderRadius: 6,
                               fontSize: 14,
+                              padding: 0,
+                              margin: 0,
+                              display:'flex',
+                              alignItems:'center',
+                              justifyContent:'center'
                             }}
                           >
-                            🗑
+                            <MdClose />
                           </button>
 
                           {/* Main info */}
@@ -1150,7 +1154,7 @@ const OrderAssembly = () => {
                               style={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: 6,
+                                gap: 2,
                                 marginBottom: 2,
                               }}
                             >
@@ -1158,10 +1162,9 @@ const OrderAssembly = () => {
                                 style={{
                                   fontSize: 12,
                                   color: "#6b7280",
-                                  width: 18,
                                 }}
                               >
-                                {idx + 1}
+                                {idx + 1}.
                               </span>
                               <span
                                 style={{
@@ -1181,19 +1184,15 @@ const OrderAssembly = () => {
                                 display: "flex",
                                 flexWrap: "wrap",
                                 gap: 6,
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: "#6b7280",
                               }}
                             >
-                              <span>MRP: {row.mrp}</span>
-                              <span>
-                                Qty: {row.totalB} :{" "}
-                                {row.totalP}
-                              </span>
-                              <span>
-                                Orders:{" "}
-                                {row.orderCount}
-                              </span>
+                              <span>Orders: {row.orderCount}</span>
+                              <span>•</span>
+                              <span>MRP: ₹{row.mrp}</span>
+                              <span>•</span>
+                              <span style={{fontWeight:'600',color:'black'}}>QTY: ({row.totalB} : {row.totalP})</span>
                             </div>
                           </div>
 
@@ -1310,14 +1309,14 @@ const OrderAssembly = () => {
 
         {/* Two-column layout */}
         <div className="assembly-layout">
-          {/* LEFT: Carate Progress */}
+          {/* LEFT: Crate Progress */}
           <section className="panel">
             <div className="panel-header">
-              Carate Progress (Counters ={" "}
+              Crate Progress (Counters ={" "}
               {uniqueCountersArr.length})
             </div>
             <div className="panel-body">
-              <div className="carate-list">
+              <div className="crate-list">
                 {uniqueCountersArr.map((c, idx) => {
                   const bp =
                     perCounterCounts.get(c.uuid) ||
@@ -1327,16 +1326,16 @@ const OrderAssembly = () => {
                   return (
                     <div
                       key={c.uuid}
-                      className="carate-item"
+                      className="crate-item"
                     >
-                      <div className="carate-tube">
+                      <div className="crate-tube">
                         <div
-                          className="carate-fill"
+                          className="crate-fill"
                           style={{ width: "0%" }}
                         />
-                        <div className="carate-text">
+                        <div className="crate-text">
                           {idx + 1}. {c.title}
-                          <span className="carate-orders">
+                          <span className="crate-orders">
                             {chips.map((o) => (
                               <span
                                 key={o.number}
@@ -1348,7 +1347,7 @@ const OrderAssembly = () => {
                             ))}
                           </span>
                         </div>
-                        <div className="carate-count">
+                        <div className="crate-count">
                           {bp.b} : {bp.p}
                         </div>
                       </div>

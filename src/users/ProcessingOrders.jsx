@@ -23,7 +23,7 @@ const ProcessingOrders = () => {
 	const params = useParams()
 	const audiosRef = useRef()
 	const Location = useLocation()
-	const Navigate = useNavigate()
+	const navigate = useNavigate()
 
 	const [BarcodeMessage, setBarcodeMessage] = useState([])
 	const [minMaxPopup, setMinMaxPopup] = useState()
@@ -43,7 +43,6 @@ const ProcessingOrders = () => {
 	const [itemCategories, setItemsCategory] = useState([])
 	const [playCount, setPlayCount] = useState(1)
 	const [selectedOrder, setSelectedOrder] = useState()
-	const [originalOrder, setOriginalOrder] = useState(null);
 	const [playerSpeed, setPlayerSpeed] = useState(1)
 	const [orderCreated, setOrderCreated] = useState(false)
 	const [oneTimeState, setOneTimeState] = useState(false)
@@ -72,9 +71,9 @@ const ProcessingOrders = () => {
 			if (selectedOrder) {
 				setConfirmPopup(true)
 				// window.history.pushState(null, document.title, window.location.href);
-				Navigate(1)
+				navigate(1)
 			} else {
-				Navigate(-1)
+				navigate(-1)
 			}
 		})
 	}, [selectedOrder, confirmPopup])
@@ -161,9 +160,9 @@ const getTripOrders = async () => {
 }
 
 const openAssemblyOrders = () => {
-  if (!selectedTrip) return;
+  if (!params?.trip_uuid) return;
 
-  const tripOrders = grouped[selectedTrip]?.orders || [];
+  const tripOrders = orders || [];
 
   // Store full orders in sessionStorage for Assembly page (required for SAVE)
   try {
@@ -177,10 +176,10 @@ const openAssemblyOrders = () => {
     console.warn("Failed to store assembly orders in session", err);
   }
 
-  navigate(`/users/processing/${selectedTrip}/assembly`, {
+  navigate(`/users/processing/${params.trip_uuid}/assembly`, {
     state: {
       fromProcessing: true,
-      trip_uuid: selectedTrip,
+      trip_uuid: params.trip_uuid,
       orders: tripOrders,
       itemsMaster: items,
       categoriesMaster: itemCategories,
@@ -607,9 +606,9 @@ useEffect(() => {
 							if (selectedOrder) {
 								setConfirmPopup(true)
 							} else {
-								if (Location.pathname.includes("processing")) Navigate("/users/processing")
-								else if (Location.pathname.includes("checking")) Navigate("/users/checking")
-								else if (Location.pathname.includes("delivery")) Navigate("/users/delivery")
+								if (Location.pathname.includes("processing")) navigate("/users/processing")
+								else if (Location.pathname.includes("checking")) navigate("/users/checking")
+								else if (Location.pathname.includes("delivery")) navigate("/users/delivery")
 							}
 						}}
 					/>
@@ -617,7 +616,7 @@ useEffect(() => {
 						<HomeIcon
 							className="user_Back_icon"
 							onClick={() => {
-								Navigate("/users")
+								navigate("/users")
 							}}
 						/>
 					) : (
@@ -1441,7 +1440,7 @@ useEffect(() => {
 					}}
 					selectedOrder={selectedOrder}
 					onClose={() => setConfirmPopup(false)}
-					Navigate={Navigate}
+					Navigate={navigate}
 				/>
 			) : (
 				""
