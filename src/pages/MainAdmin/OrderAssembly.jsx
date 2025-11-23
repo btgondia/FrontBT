@@ -13,6 +13,8 @@ import { openDB } from "idb";
 import "./style.css";
 import { useAssemblyProcessing } from "./AssemblyOrderProcessing";
 
+const ORDER_ASSEMBLY_SS_KEY = "orderAssemblySelectedOrders";
+
 /* ----------------- helpers ----------------- */
 const norm = (s) => String(s ?? "").trim();
 const nnum = (v, d = 0) => (isNaN(+v) ? d : +v);
@@ -430,9 +432,33 @@ const OrderAssembly = () => {
     loadCounters();
   }, []);
 
-  // Orders from router state
+  // Orders from router state, with sessionStorage fallback (for mobile/users)
   useEffect(() => {
-    setOrders(location.state?.orders || []);
+    const stateOrders = location.state?.orders;
+
+    if (Array.isArray(stateOrders) && stateOrders.length) {
+      setOrders(stateOrders);
+      return;
+    }
+
+    // Fallback: read from sessionStorage (used by /users/processing flow)
+    try {
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        const raw = window.sessionStorage.getItem(ORDER_ASSEMBLY_SS_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length) {
+            setOrders(parsed);
+            return;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to read assembly orders from session", err);
+    }
+
+    // If nothing found, keep empty array to avoid crashing
+    setOrders([]);
   }, [location.state]);
 
   const itemsIdx = useMemo(
@@ -750,7 +776,7 @@ const OrderAssembly = () => {
   const pendingActionRef = useRef(null);
   const [pendingActionToken, setPendingActionToken] = useState(0);
 
-    // SAVE helper: just call the hook's save (buffer already knows changes)
+  // SAVE helper: just call the hook's save (buffer already knows changes)
   const handleAssemblySave = useCallback(() => {
     save();
   }, [save]);
@@ -762,7 +788,6 @@ const OrderAssembly = () => {
     queueActionForSelectedItem(pending.status);
     pendingActionRef.current = null;
   }, [pendingActionToken, queueActionForSelectedItem]);
-
 
   // Row highlight colors (based only on status, not on selection)
   const rowHighlight = useMemo(() => {
@@ -780,7 +805,7 @@ const OrderAssembly = () => {
     return map;
   }, [filtered, previewStatusByItemKey]);
 
-const applyStatusForKey = useCallback(
+  const applyStatusForKey = useCallback(
     (key, status) => {
       if (!key) return;
       // store which key & status we want to apply
@@ -794,9 +819,6 @@ const applyStatusForKey = useCallback(
     },
     [setSelectedKey, setPendingActionToken, setDeviceTriggerCounter]
   );
-
-
-
 
   // COMPLETE toggle
   const toggleCompleteForItemKey = useCallback(

@@ -15,6 +15,8 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline"
 import { Billing, audioLoopFunction, audioAPIFunction } from "../Apis/functions"
 import DiliveryReplaceMent from "../components/DiliveryReplaceMent"
+const ORDER_ASSEMBLY_SS_KEY = "orderAssemblySelectedOrders";
+
 const selected_order_label = "SELECTED_PROCESSING_ORDER"
 
 const ProcessingOrders = () => {
@@ -41,6 +43,7 @@ const ProcessingOrders = () => {
 	const [itemCategories, setItemsCategory] = useState([])
 	const [playCount, setPlayCount] = useState(1)
 	const [selectedOrder, setSelectedOrder] = useState()
+	const [originalOrder, setOriginalOrder] = useState(null);
 	const [playerSpeed, setPlayerSpeed] = useState(1)
 	const [orderCreated, setOrderCreated] = useState(false)
 	const [oneTimeState, setOneTimeState] = useState(false)
@@ -158,17 +161,32 @@ const getTripOrders = async () => {
 }
 
 const openAssemblyOrders = () => {
-  if (!orders || !orders.length) return
+  if (!selectedTrip) return;
 
-  // ✅ Go to the USER assembly route, not admin
-  Navigate(`/users/processing/${params.trip_uuid}/assembly`, {
-    state: {
-      orders,
-      itemsMaster: items,
-      categoriesMaster: itemCategories
+  const tripOrders = grouped[selectedTrip]?.orders || [];
+
+  // Store full orders in sessionStorage for Assembly page (required for SAVE)
+  try {
+    if (typeof window !== "undefined" && window.sessionStorage) {
+      window.sessionStorage.setItem(
+        ORDER_ASSEMBLY_SS_KEY,
+        JSON.stringify(tripOrders)
+      );
     }
-  })
-}
+  } catch (err) {
+    console.warn("Failed to store assembly orders in session", err);
+  }
+
+  navigate(`/users/processing/${selectedTrip}/assembly`, {
+    state: {
+      fromProcessing: true,
+      trip_uuid: selectedTrip,
+      orders: tripOrders,
+      itemsMaster: items,
+      categoriesMaster: itemCategories,
+    },
+  });
+};
 
 
 useEffect(() => {
