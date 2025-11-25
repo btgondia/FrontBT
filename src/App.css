@@ -513,8 +513,8 @@ svg.table-icon {
 .loader {
 	width: 48px;
 	height: 48px;
-	border: 5px solid #000;
-	border-bottom-color: transparent;
+	border: 6px solid #000;
+	border-bottom-color: transparent!important;
 	border-radius: 50%;
 	display: inline-block;
 	box-sizing: border-box;
@@ -524,6 +524,18 @@ svg.table-icon {
 .loader.small {
 	width: 30px;
 	height: 30px;
+}
+
+.loader.x-small {
+	width: 20px;
+	height: 20px;
+	border-width: 2px;
+}
+
+.loader.x2-small {
+	width: 16px;
+	height: 16px;
+	border-width: 2px;
 }
 
 .loader.white {

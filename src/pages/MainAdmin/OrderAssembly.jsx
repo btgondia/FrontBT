@@ -234,6 +234,7 @@ const OrderAssembly = () => {
   const location = useLocation();
   const [orders, setOrders] = useState([]);
   const [search, setSearch] = useState("");
+  const [deviceCallStatus, setDeviceCallStatus] = useState()
 
   const [itemsMaster, setItemsMaster] = useState(
     location.state?.itemsMaster || window.BT_ITEMS || null
@@ -724,6 +725,54 @@ const OrderAssembly = () => {
     return B === 0 ? String(P) : `${B}x${P}`;
   };
 
+  async function fetchWithRetry(url, attempts = 3, signal, id) {
+    for (let i = 1; i <= attempts; i++) {
+      try {
+        const res = await fetch(url, {
+          method: "GET",
+          mode: "no-cors",
+          signal,
+        });
+        setDeviceCallStatus(prev =>
+          prev?.retrying?.includes(id)
+            ? ({...prev, retrying: (prev?.retrying || [])?.filter(i => i !== id)})
+            : prev
+        )
+        return res;
+      } catch (err) {
+        if (signal?.aborted) {
+          setDeviceCallStatus(prev =>
+            prev?.retrying?.includes(id)
+              ? ({...prev, retrying: (prev?.retrying || [])?.filter(i => i !== id)})
+              : prev
+          )
+          return
+        };
+        if (i === attempts) {
+          setDeviceCallStatus(prev => ({
+            status: 2,
+            retrying: prev?.retrying?.filter(i => i !== id) || [],
+            failed: [
+              ...(prev?.failed || []),
+              {
+                id,
+                url,
+                message: err.response?.data?.message || err.response?.data?.error || err.message,
+              }
+            ]
+          }))
+          throw err
+        };  // final failure
+        await new Promise((res) => setTimeout(res, 250)); // small backoff
+        setDeviceCallStatus(prev => ({
+          ...prev,
+          status: 2,
+          retrying: Array.from(new Set(([...(prev?.retrying || []), id]))),
+        }))
+      }
+    }
+  }
+
   useEffect(() => {
     if (!uniqueCountersArr || uniqueCountersArr.length === 0) return;
     if (!selectedRowMeta.key && !selectedRowMeta.name) return;
@@ -731,23 +780,21 @@ const OrderAssembly = () => {
     const controller = new AbortController();
     const send = async () => {
       try {
+        setDeviceCallStatus({ status: 1 })
         const reqs = uniqueCountersArr.map((c, idx) => {
-          const cp =
-            perCounterCounts.get(c.uuid) ?? { b: 0, p: 0 };
+          const cp = perCounterCounts.get(c.uuid) ?? { b: 0, p: 0 };
           const base = deviceBases[idx] || "";
           if (!base) return Promise.resolve();
           const valParam = formatVal(cp);
-          const finalUrl = `${base}val=${encodeURIComponent(
-            valParam
-          )}`;
-          return fetch(finalUrl, {
-            method: "GET",
-            mode: "no-cors",
-            signal: controller.signal,
-          }).catch(() => {});
+          const finalUrl = `${base}val=${encodeURIComponent(valParam)}`;
+          const id = Date.now().toString() + idx
+          return fetchWithRetry(finalUrl, 3, controller.signal, id)
         });
         await Promise.all(reqs);
-      } catch {}
+        setDeviceCallStatus({ status: 0 })
+      } catch {
+        setDeviceCallStatus(prev => ({...prev, status: 3 }))
+      }
     };
     send();
     return () => controller.abort();
@@ -816,9 +863,9 @@ const OrderAssembly = () => {
       // trigger the effect that will call queueActionForSelectedItem
       setPendingActionToken((t) => t + 1);
       // also trigger device updates
-      setDeviceTriggerCounter((c) => c + 1);
+      // setDeviceTriggerCounter((c) => c + 1);
     },
-    [setSelectedKey, setPendingActionToken, setDeviceTriggerCounter]
+    [setSelectedKey, setPendingActionToken]
   );
 
   // COMPLETE toggle
@@ -827,6 +874,7 @@ const OrderAssembly = () => {
       const current = previewStatusByItemKey?.get?.(key) ?? 0;
       const next = current === 1 ? 0 : 1; // same button → revert
       applyStatusForKey(key, next);
+      setDeviceTriggerCounter((c) => c + 1);
     },
     [previewStatusByItemKey, applyStatusForKey]
   );
@@ -857,6 +905,27 @@ const OrderAssembly = () => {
       <div className="right-side mobile-assembly">
         {/* Combined header with tabs + SAVE */}
         {/* TOP HEADER (new layout) */}
+        {deviceCallStatus?.status === 3 && <div className="overlay">
+          <div className="modal" style={{padding:15,width:'480px',maxWidth:'95vw',position:'relative'}}>
+            <h5 style={{fontSize:16}}>Device Call Errors</h5>
+            <span style={{fontSize:13}}>Total {deviceCallStatus?.failed?.length || 0} devices failed</span>
+            <ol style={{fontSize:14,marginTop:8,marginLeft:15}}>
+              {
+                deviceCallStatus?.failed?.map(i => (
+                  <li key={i.id}>
+                    <b>{i.url}</b>
+                    <br />
+                    <p>{i.message}</p>
+                  </li>
+                ))
+              }
+            </ol>
+            <button style={{position:'absolute',right:10,top:10,display:'flex'}} onClick={() => setDeviceCallStatus()}>
+              <MdClose />
+            </button>
+          </div>
+        </div>}
+
         <div
           className="mobile-assembly-header"
           style={{
@@ -904,6 +973,24 @@ const OrderAssembly = () => {
                 gap: 8,
               }}
             >
+              {
+                [1,2]?.includes(deviceCallStatus?.status) && <span
+                  style={{
+                    fontSize: 12,
+                    color: "#B45309",
+                    background: "#FEF3C7",
+                    padding: "4px 8px",
+                    borderRadius: 6,
+                    display:'flex',
+                    gap: 6,
+                  }}
+                >
+                  <span>
+                    {deviceCallStatus?.status === 1 ? "Updating Devices": `Retrying ${deviceCallStatus?.retrying?.length}`}
+                  </span>
+                  <span className="loader x2-small" style={{borderColor:"#B45309"}} />
+                </span>
+              }
               {pendingCount > 0 && (
                 <span
                   style={{
@@ -1072,7 +1159,7 @@ const OrderAssembly = () => {
               <div
                 className="summary"
                 style={{
-                  paddingBottom: 64,
+                  // paddingBottom: 64,
                   maxHeight: "calc(100vh - 110px)",
                   overflowY: "auto",
                 }}
