@@ -12,9 +12,12 @@ import axios from "axios";
 import { openDB } from "idb";
 import "./style.css";
 import { useAssemblyProcessing } from "./AssemblyOrderProcessing";
-import { MdClose } from "react-icons/md";
+import { MdCheck, MdClose, MdError, MdErrorOutline, MdReplay, MdSend } from "react-icons/md";
+import { RiErrorWarningFill, RiErrorWarningLine } from "react-icons/ri";
+import { CodeIcon } from "@heroicons/react/solid";
 
 const ORDER_ASSEMBLY_SS_KEY = "orderAssemblySelectedOrders";
+const ASSEMBLY_DEVICE_COUNT = 20
 
 /* ----------------- helpers ----------------- */
 const norm = (s) => String(s ?? "").trim();
@@ -245,6 +248,7 @@ const OrderAssembly = () => {
       null
   );
   const [counterIndex, setCounterIndex] = useState(new Map());
+  const [deviceTestMsgs, setDeviceTestMsgs] = useState()
 
   /* ---------- MOBILE VIEW DETECTION ---------- */
   const [isMobile, setIsMobile] = useState(false);
@@ -313,9 +317,9 @@ const OrderAssembly = () => {
     if (changed) setOrders(patched);
   }, [orders]); // safe due to 'changed' guard
 
-  // Device bases (1..20)
+  // Device bases (1..DEVICE_COUNT)
   const [deviceBases, setDeviceBases] = useState(
-    Array.from({ length: 20 }, () => "")
+    Array.from({ length: ASSEMBLY_DEVICE_COUNT }, () => "")
   );
   useEffect(() => {
     (async () => {
@@ -333,7 +337,7 @@ const OrderAssembly = () => {
           ])
         );
         const normed = Array.from(
-          { length: 20 },
+          { length: ASSEMBLY_DEVICE_COUNT },
           (_, i) => {
             const n = i + 1;
             let base = byNum.get(n) || "";
@@ -905,6 +909,7 @@ const OrderAssembly = () => {
       <div className="right-side mobile-assembly">
         {/* Combined header with tabs + SAVE */}
         {/* TOP HEADER (new layout) */}
+
         {deviceCallStatus?.status === 3 && <div className="overlay">
           <div className="modal" style={{padding:15,width:'480px',maxWidth:'95vw',position:'relative'}}>
             <h5 style={{fontSize:16}}>Device Call Errors</h5>
@@ -929,7 +934,6 @@ const OrderAssembly = () => {
         <div
           className="mobile-assembly-header"
           style={{
-            padding: "10px 12px",
             borderBottom: "1px solid #e5e7eb",
             background: "#ffffff",
           }}
@@ -937,94 +941,113 @@ const OrderAssembly = () => {
           {/* Row 1: Close  ......  (xx pending) SAVE */}
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              marginBottom: 10,
+              width:'100vw',
+              maxWidth:'500px',
+              overflow:'auto',
             }}
           >
-            {/* Close on the left */}
-            <button
-              type="button"
-              onClick={() => {
-                if (
-                  window.confirm(
-                    "Changes will get discarded. Continue?"
-                  )
-                ) {
-                  window.history.back();
-                }
-              }}
-              style={{
-                color: "#DC2626",
-                fontWeight: 600,
-                fontSize: 14,
-                border: "none",
-                background: "transparent",
-              }}
-            >
-              Close
-            </button>
-
             <div
               style={{
-                marginLeft: "auto",
                 display: "flex",
-                alignItems: "center",
-                gap: 8,
+                padding: "10px 12px",
+                gap: '20px',
+                width:'calc(100vw + 260px)',
+                maxWidth:'calc(500px + 260px)',
               }}
             >
-              {
-                [1,2]?.includes(deviceCallStatus?.status) && <span
-                  style={{
-                    fontSize: 12,
-                    color: "#B45309",
-                    background: "#FEF3C7",
-                    padding: "4px 8px",
-                    borderRadius: 6,
-                    display:'flex',
-                    gap: 6,
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                width:'calc(100vw - 24px)',
+                maxWidth:'calc(500px - 24px)'
+              }}>
+                {/* Close on the left */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        "Changes will get discarded. Continue?"
+                      )
+                    ) {
+                      window.history.back();
+                    }
                   }}
-                >
-                  <span>
-                    {deviceCallStatus?.status === 1 ? "Updating Devices": `Retrying ${deviceCallStatus?.retrying?.length}`}
-                  </span>
-                  <span className="loader x2-small" style={{borderColor:"#B45309"}} />
-                </span>
-              }
-              {pendingCount > 0 && (
-                <span
                   style={{
+                    color: "#DC2626",
+                    fontWeight: 600,
                     fontSize: 14,
-                    color: "#B45309",
-                    background: "#FEF3C7",
-                    padding: "4px 8px",
-                    borderRadius: 6,
+                    border: "none",
+                    background: "transparent",
                   }}
                 >
-                  {pendingCount} pending
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={handleAssemblySave}
-                style={{
-                  background: "#10B981",
-                  color: "white",
-                  padding: "6px 16px",
-                  borderRadius: 8,
-                  border: "none",
-                  fontWeight: 700,
-                  fontSize: 15,
-                }}
-              >
-                SAVE
-              </button>
+                  Close
+                </button>
+
+                <div
+                  style={{
+                    marginLeft: "auto",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  {
+                    [1,2]?.includes(deviceCallStatus?.status) && <span
+                      style={{
+                        fontSize: 12,
+                        color: "#B45309",
+                        background: "#FEF3C7",
+                        padding: "4px 8px",
+                        borderRadius: 6,
+                        display:'flex',
+                        gap: 6,
+                      }}
+                    >
+                      <span>
+                        {deviceCallStatus?.status === 1 ? "Updating Devices": `Retrying ${deviceCallStatus?.retrying?.length}`}
+                      </span>
+                      <span className="loader x2-small" style={{borderColor:"#B45309"}} />
+                    </span>
+                  }
+                  {pendingCount > 0 && (
+                    <span
+                      style={{
+                        fontSize: 14,
+                        color: "#B45309",
+                        background: "#FEF3C7",
+                        padding: "4px 8px",
+                        borderRadius: 6,
+                      }}
+                    >
+                      {pendingCount} pending
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleAssemblySave}
+                    style={{
+                      background: "#10B981",
+                      color: "white",
+                      padding: "6px 16px",
+                      borderRadius: 8,
+                      border: "none",
+                      fontWeight: 700,
+                      fontSize: 15,
+                    }}
+                  >
+                    SAVE
+                  </button>
+                </div>
+              </div>
+              <AssemblyDevicePlayground deviceBases={deviceBases} />
             </div>
           </div>
 
           {/* Row 2: [Crate] [Items]  Search */}
           <div
             style={{
+              padding: "0 12px 10px",
               display: "flex",
               alignItems: "center",
               gap: 10,
@@ -1696,3 +1719,175 @@ const OrderAssembly = () => {
 };
 
 export default OrderAssembly;
+
+function randomStr(length) {
+  let result = '';
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const charactersLength = characters.length;
+  for (let i = 0; i < length; i++) {
+      result += characters.charAt(Math.floor(Math.random() * charactersLength));
+  }
+  return result;
+}
+
+const AssemblyDevicePlayground = ({deviceBases}) => {
+  const [isOpen, setIsOpen] = useState()
+  const [messages, setMessages] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [playgroundState, setPlaygroundState] = useState({})
+
+  const generateAll = () => {
+    const mssgs = deviceBases.filter(i => i).map(() => randomStr(4))
+    setMessages(mssgs)
+    return mssgs
+  }
+
+  const sendAll = async (mssgs) => {
+    setLoading(true)
+    const reqs = []
+    const generatedMssgs = []
+
+    for (let i = 0; i < deviceBases.length; i++) {
+      const baseUrl = deviceBases[i];
+      if (!baseUrl) continue
+      const mssg = mssgs ? mssgs[i] : randomStr(4)
+      if (!mssgs) generatedMssgs.push(mssg)
+
+      const url = `${baseUrl}val=${mssg}`;
+      reqs.push(
+        fetch(url, {
+          method: 'get',
+          mode: "no-cors",
+        }
+      ))
+    }
+
+    if (!mssgs) setMessages(generatedMssgs)
+
+    const results = await Promise.allSettled(reqs);
+    setPlaygroundState(
+      Array.from(results).reduce((o, r, idx) => ({
+        ...o,
+        [idx]: {
+          succeed: r.status === "fulfilled",
+          error: r?.reason?.message || null
+        }
+      }), {})
+    )
+    setLoading(false)
+  }
+
+  console.log(playgroundState)
+
+  useEffect(() => {
+    if (!deviceBases?.[0]) return
+    sendAll()
+  }, [deviceBases])
+
+  const send = async (index) => {
+    try {
+      setPlaygroundState(p => ({ ...p, [index]: {loading: true} }))
+      const url = `${deviceBases[index]}val=${messages[index]}`;
+      await fetch(url, {
+        method: 'get',
+        mode: "no-cors",
+      })
+      setPlaygroundState(p => ({ ...p, [index]: {succeed:true} }))
+    } catch (error) {
+      setPlaygroundState(p => ({
+        ...p,
+        [index]: {
+          error: error?.response?.data?.message || error?.response?.data?.error || error?.message
+        }
+      }))
+    }
+  }
+
+  return (
+    <div>
+      <button
+        style={{
+          background: "#1E90FF",
+          color: "white",
+          padding: "6px 16px",
+          borderRadius: 8,
+          border: "none",
+          display:'flex',
+          alignItems:'center',
+          gap:'5px',
+          fontSize: 16
+        }}
+        onClick={() => setIsOpen(true)}
+      >
+        <CodeIcon style={{width:'18px'}} />
+        <span>Testing Playground</span>
+      </button>
+      {
+        isOpen && <div className="overlay">
+          <div className="modal" style={{width:'480px',maxWidth:'95vw',position:'relative',padding:0}}>
+            <div className="modal-head" style={{background:"black"}}>
+              <h1 style={{fontSize:16,color:'white'}}>Assembly Device Testing Playground</h1>
+            </div>
+            <div className="modal-body">
+              <div>
+                <button style={{padding:'2px 3px',marginRight:'8px'}} onClick={() => generateAll()}>Regenerate all</button>
+                <button style={{padding:'2px 3px',marginRight:'8px'}} onClick={() => sendAll(messages)}>Send all</button>
+                <button style={{padding:'2px 3px',marginRight:'8px'}} onClick={() => sendAll()}>Generate & Send all</button>
+              </div>
+              <ol style={{fontSize:14,marginBlock:20,marginLeft:15}}>
+                {
+                  messages?.map((i, idx) => (
+                    <li key={'mssg:'+idx} className="faded-markers" style={{marginBlock:'16px'}}>
+                      <span style={{
+                        fontFamily: 'monospace',
+                        letterSpacing:5,
+                        paddingLeft:'5px',
+                        fontWeight:500,
+                        fontSize:20,
+                        marginRight: "10px"
+                      }}>{i}</span>
+                      {playgroundState?.[idx]?.loading || loading
+                        ? <span className="loader x2-small" style={{marginLeft:'10px'}} />
+                        : <>
+                          <button
+                            style={{ display: 'inline-flex', marginLeft: '10px' }}
+                            onClick={() => setMessages(p => 
+                                p.slice(0, idx)
+                                .concat(randomStr(4))
+                                .concat(p.slice(idx + 1, p.length))
+                              )
+                            }
+                          >
+                            <MdReplay />
+                          </button>
+                          <button
+                            style={{ display: 'inline-flex', marginLeft: '10px' }}
+                            onClick={() => send(idx)}
+                          >
+                            <MdSend />
+                          </button>
+                        </>
+                      }
+                      {playgroundState?.[idx]?.succeed && <MdCheck color="#44cd4a" style={{fontSize:16,marginLeft:'10px'}} />}
+                      {playgroundState?.[idx]?.error &&
+                        <p style={{display:'flex',alignItems:'center',gap:'5px'}}>
+                          <RiErrorWarningFill color="red" style={{fontSize:18}} />
+                          <span style={{color:'rgb(85, 85, 85)'}}>
+                            {playgroundState?.[idx]?.error}
+                          </span>
+                        </p>
+                      }
+                    </li>
+                  ))
+                }
+              </ol>
+            </div>
+            <button style={{position:'absolute',right:10,top:10,display:'flex'}} onClick={() => setIsOpen()}>
+              <MdClose />
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  )
+}

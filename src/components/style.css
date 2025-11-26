@@ -3220,3 +3220,8 @@ button.counter-save-btn {
 		background: var(--form-theme-light);
 	}
 }
+
+.faded-markers::marker {
+	color: rgb(91, 91, 91);
+	font-size: 12px;
+}
