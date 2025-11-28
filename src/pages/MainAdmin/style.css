@@ -312,6 +312,7 @@
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   /* height: 40px; */
   background: #ffffff;
   border: 1px solid #c0c7d1;

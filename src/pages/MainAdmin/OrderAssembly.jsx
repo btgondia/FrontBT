@@ -5,15 +5,14 @@ import React, {
   useRef,
   useCallback,
 } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import axios from "axios";
-import { openDB } from "idb";
 import "./style.css";
 import { useAssemblyProcessing } from "./AssemblyOrderProcessing";
-import { MdCheck, MdClose, MdError, MdErrorOutline, MdReplay, MdSend } from "react-icons/md";
-import { RiErrorWarningFill, RiErrorWarningLine } from "react-icons/ri";
+import { MdCheck, MdClose, MdReplay, MdSend } from "react-icons/md";
+import { RiErrorWarningFill } from "react-icons/ri";
 import { CodeIcon } from "@heroicons/react/solid";
 
 const ORDER_ASSEMBLY_SS_KEY = "orderAssemblySelectedOrders";
@@ -227,14 +226,18 @@ function computeItemSummary(orders = [], itemsIdx, catIdx) {
   return out;
 }
 
+let doneCounterTempId
+
 /* ------------------------------- page ------------------------------- */
 const OrderAssembly = () => {
   // force mobile layout on /users/processing route (for testing on PC)
   const isMobileAssembly = window.location.pathname.includes(
     "/users/processing"
   );
-
+  
+  const navigate = useNavigate()
   const location = useLocation();
+  
   const [orders, setOrders] = useState([]);
   const [search, setSearch] = useState("");
   const [deviceCallStatus, setDeviceCallStatus] = useState()
@@ -248,7 +251,7 @@ const OrderAssembly = () => {
       null
   );
   const [counterIndex, setCounterIndex] = useState(new Map());
-  const [deviceTestMsgs, setDeviceTestMsgs] = useState()
+  const [doneCounterIds, setDoneCounterIds] = useState([])
 
   /* ---------- MOBILE VIEW DETECTION ---------- */
   const [isMobile, setIsMobile] = useState(false);
@@ -729,20 +732,37 @@ const OrderAssembly = () => {
     return B === 0 ? String(P) : `${B}x${P}`;
   };
 
-  async function fetchWithRetry(url, attempts = 3, signal, id) {
+  // 😵‍💫 boolean for if the counter is cooked or naah!
+  // boolean: all items in all orders for that counter are completed (1) or cancelled (3)
+  // excluding current item, of course!
+  const isCounterDone = (counterId, currItemId) => {
+    return !ordersByCounter.get(counterId)?.some(i => {
+      const order = orders.some(o => [o.invoice_number, o.order_uuid].includes(i.number))
+      if (order.item_details?.some(i => (i.status !== 1 && i.status !== 3) || i.item_uuid === currItemId))
+        return true
+    })
+  }
+
+  async function fetchWithRetry(url, attempts = 3, signal, data) {
+    const {id, idx, qty, counterId, itemId} = data || {}
     for (let i = 1; i <= attempts; i++) {
       try {
-        const res = await fetch(url, {
+        await fetch(url, {
           method: "GET",
           mode: "no-cors",
           signal,
         });
-        setDeviceCallStatus(prev =>
-          prev?.retrying?.includes(id)
-            ? ({...prev, retrying: (prev?.retrying || [])?.filter(i => i !== id)})
-            : prev
-        )
-        return res;
+        if (data) {
+          setDeviceCallStatus(prev =>
+            prev?.retrying?.includes(id)
+              ? ({...prev, retrying: (prev?.retrying || [])?.filter(i => i !== id)})
+              : prev
+          )
+          if (isCounterDone(counterId, itemId)) doneCounterTempId = {
+            counterId,
+            idx
+          }
+        }
       } catch (err) {
         if (signal?.aborted) {
           setDeviceCallStatus(prev =>
@@ -753,26 +773,29 @@ const OrderAssembly = () => {
           return
         };
         if (i === attempts) {
-          setDeviceCallStatus(prev => ({
-            status: 2,
-            retrying: prev?.retrying?.filter(i => i !== id) || [],
-            failed: [
-              ...(prev?.failed || []),
-              {
-                id,
-                url,
-                message: err.response?.data?.message || err.response?.data?.error || err.message,
-              }
-            ]
-          }))
+          if (data)
+            setDeviceCallStatus(prev => ({
+              status: prev?.retrying?.length <= 1 ? 2 : 1,
+              retrying: prev?.retrying?.filter(i => i !== id) || [],
+              failed: [
+                ...(prev?.failed || []),
+                {
+                  url,
+                  idx,
+                  qty,
+                  message: err.response?.data?.message || err.response?.data?.error || err.message,
+                }
+              ]
+            }))
           throw err
         };  // final failure
         await new Promise((res) => setTimeout(res, 250)); // small backoff
-        setDeviceCallStatus(prev => ({
-          ...prev,
-          status: 2,
-          retrying: Array.from(new Set(([...(prev?.retrying || []), id]))),
-        }))
+        if (data)
+          setDeviceCallStatus(prev => ({
+            ...prev,
+            status: 2,
+            retrying: Array.from(new Set(([...(prev?.retrying || []), id]))),
+          }))
       }
     }
   }
@@ -784,15 +807,34 @@ const OrderAssembly = () => {
     const controller = new AbortController();
     const send = async () => {
       try {
+        if (doneCounterTempId) {
+          fetchWithRetry(`${deviceBases[doneCounterTempId.idx]}val=DONE`)
+            .then(() => {
+              setDoneCounterIds(p => (p || []).concat([doneCounterTempId.counterId]))
+              doneCounterTempId = null
+            })
+            .catch(() => alert(
+              `Failed to send 'DONE' to #${doneCounterTempId.idx + 1} ${uniqueCountersArr[doneCounterTempId.idx].title}`
+            ))
+        }
         setDeviceCallStatus({ status: 1 })
         const reqs = uniqueCountersArr.map((c, idx) => {
+          if (doneCounterTempId === c.uuid || doneCounterIds?.includes(c.uuid))
+            return Promise.resolve()
+
           const cp = perCounterCounts.get(c.uuid) ?? { b: 0, p: 0 };
           const base = deviceBases[idx] || "";
           if (!base) return Promise.resolve();
           const valParam = formatVal(cp);
           const finalUrl = `${base}val=${encodeURIComponent(valParam)}`;
           const id = Date.now().toString() + idx
-          return fetchWithRetry(finalUrl, 3, controller.signal, id)
+          return fetchWithRetry(finalUrl, 3, controller.signal, {
+            id,
+            idx,
+            qty: cp,
+            counterId: c.uuid,
+            itemId: selectedRowMeta.key
+          })
         });
         await Promise.all(reqs);
         setDeviceCallStatus({ status: 0 })
@@ -917,8 +959,8 @@ const OrderAssembly = () => {
             <ol style={{fontSize:14,marginTop:8,marginLeft:15}}>
               {
                 deviceCallStatus?.failed?.map(i => (
-                  <li key={i.id}>
-                    <b>{i.url}</b>
+                  <li key={"error-detail:"+i.idx}>
+                    <b>{'#'}{i.idx + 1} {uniqueCountersArr[i.idx]?.title} [{i.qty?.b}:{i.qty?.p}]</b>
                     <br />
                     <p>{i.message}</p>
                   </li>
@@ -965,13 +1007,8 @@ const OrderAssembly = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    if (
-                      window.confirm(
-                        "Changes will get discarded. Continue?"
-                      )
-                    ) {
-                      window.history.back();
-                    }
+                    if (window.confirm("Changes will get discarded. Continue?"))
+                      navigate(window.location.pathname.split("/").slice(0, -1).join("/"));
                   }}
                   style={{
                     color: "#DC2626",
@@ -993,7 +1030,7 @@ const OrderAssembly = () => {
                   }}
                 >
                   {
-                    [1,2]?.includes(deviceCallStatus?.status) && <span
+                    [1,2]?.includes(deviceCallStatus?.status) && (deviceCallStatus?.status === 1 || deviceCallStatus?.retrying?.length) ? <span
                       style={{
                         fontSize: 12,
                         color: "#B45309",
@@ -1008,7 +1045,7 @@ const OrderAssembly = () => {
                         {deviceCallStatus?.status === 1 ? "Updating Devices": `Retrying ${deviceCallStatus?.retrying?.length}`}
                       </span>
                       <span className="loader x2-small" style={{borderColor:"#B45309"}} />
-                    </span>
+                    </span> : null
                   }
                   {pendingCount > 0 && (
                     <span
@@ -1040,7 +1077,7 @@ const OrderAssembly = () => {
                   </button>
                 </div>
               </div>
-              <AssemblyDevicePlayground deviceBases={deviceBases} />
+              <AssemblyDevicePlayground deviceBases={deviceBases} counters={uniqueCountersArr} />
             </div>
           </div>
 
@@ -1730,27 +1767,29 @@ function randomStr(length) {
   return result;
 }
 
-const AssemblyDevicePlayground = ({deviceBases}) => {
+const AssemblyDevicePlayground = ({deviceBases,counters}) => {
   const [isOpen, setIsOpen] = useState()
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
   const [playgroundState, setPlaygroundState] = useState({})
 
   const generateAll = () => {
-    const mssgs = deviceBases.filter(i => i).map(() => randomStr(4))
+    const mssg = randomStr(4)
+    const mssgs = deviceBases.filter(i => i).map(() => mssg)
     setMessages(mssgs)
     return mssgs
   }
 
-  const sendAll = async (mssgs) => {
+  const sendAll = async (mssgs, signal) => {
     setLoading(true)
     const reqs = []
     const generatedMssgs = []
+    const main_mssg = randomStr(4)
 
     for (let i = 0; i < deviceBases.length; i++) {
       const baseUrl = deviceBases[i];
       if (!baseUrl) continue
-      const mssg = mssgs ? mssgs[i] : randomStr(4)
+      const mssg = mssgs ? mssgs[i] : main_mssg
       if (!mssgs) generatedMssgs.push(mssg)
 
       const url = `${baseUrl}val=${mssg}`;
@@ -1758,6 +1797,7 @@ const AssemblyDevicePlayground = ({deviceBases}) => {
         fetch(url, {
           method: 'get',
           mode: "no-cors",
+          signal: signal
         }
       ))
     }
@@ -1765,6 +1805,7 @@ const AssemblyDevicePlayground = ({deviceBases}) => {
     if (!mssgs) setMessages(generatedMssgs)
 
     const results = await Promise.allSettled(reqs);
+    if (signal?.aborted) return
     setPlaygroundState(
       Array.from(results).reduce((o, r, idx) => ({
         ...o,
@@ -1777,12 +1818,17 @@ const AssemblyDevicePlayground = ({deviceBases}) => {
     setLoading(false)
   }
 
-  console.log(playgroundState)
-
   useEffect(() => {
-    if (!deviceBases?.[0]) return
-    sendAll()
-  }, [deviceBases])
+    if (!deviceBases?.[0] || !isOpen) return
+    const controller = new AbortController()
+    sendAll(null, controller.signal)
+    return () => {
+      controller.abort()
+      setLoading(true)
+      setMessages([])
+      setPlaygroundState({})
+    }
+  }, [deviceBases, isOpen])
 
   const send = async (index) => {
     try {
@@ -1830,9 +1876,9 @@ const AssemblyDevicePlayground = ({deviceBases}) => {
             </div>
             <div className="modal-body">
               <div>
-                <button style={{padding:'2px 3px',marginRight:'8px'}} onClick={() => generateAll()}>Regenerate all</button>
-                <button style={{padding:'2px 3px',marginRight:'8px'}} onClick={() => sendAll(messages)}>Send all</button>
-                <button style={{padding:'2px 3px',marginRight:'8px'}} onClick={() => sendAll()}>Generate & Send all</button>
+                <button style={{padding:'2px 3px',marginRight:'8px'}} onClick={() => generateAll()}>Regenerate</button>
+                <button style={{padding:'2px 3px',marginRight:'8px'}} onClick={() => sendAll(messages)}>Send</button>
+                <button style={{padding:'2px 3px',marginRight:'8px'}} onClick={() => sendAll()}>Generate & Send</button>
               </div>
               <ol style={{fontSize:14,marginBlock:20,marginLeft:15}}>
                 {
@@ -1869,6 +1915,7 @@ const AssemblyDevicePlayground = ({deviceBases}) => {
                         </>
                       }
                       {playgroundState?.[idx]?.succeed && <MdCheck color="#44cd4a" style={{fontSize:16,marginLeft:'10px'}} />}
+                      {counters[idx]?.counter_title}
                       {playgroundState?.[idx]?.error &&
                         <p style={{display:'flex',alignItems:'center',gap:'5px'}}>
                           <RiErrorWarningFill color="red" style={{fontSize:18}} />
