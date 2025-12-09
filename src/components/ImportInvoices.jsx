@@ -6,10 +6,10 @@ import { IoIosCheckmarkCircleOutline, IoIosClose } from "react-icons/io"
 import { getInitialOrderValue } from "../utils/constants"
 
 const IMPORT_INTERVAL_TIME = 15 //seconds
-const localErrorTypes = {
-	user: "User",
-	counter: "Counter",
-	item: "Item",
+const LOCAL_ERROR_TYPES = {
+	UNMAPPED_USER: "User",
+	UNMAPPED_COUNTER: "Counter",
+	UNMAPPED_ITEM: "Item",
 }
 
 const ImportInvoices = ({ file, onClose }) => {
@@ -44,7 +44,7 @@ const ImportInvoices = ({ file, onClose }) => {
 			const errors = []
 			if (!billingParams.counter)
 				errors.push({
-					errorType: localErrorTypes.counter,
+					errorType: LOCAL_ERROR_TYPES.UNMAPPED_COUNTER,
 					name: dmsInvoice.buyer_name,
 					id: dmsInvoice.buyer_id,
 				})
@@ -53,7 +53,7 @@ const ImportInvoices = ({ file, onClose }) => {
 				const item = data.items.find((j) => j.dms_erp_ids.includes(i.dms_erp_id))
 				if (!item) {
 					errors.push({
-						errorType: localErrorTypes.item,
+						errorType: LOCAL_ERROR_TYPES.UNMAPPED_ITEM,
 						name: i.dms_item_name,
 						id: i.dms_erp_id,
 					})
@@ -81,7 +81,7 @@ const ImportInvoices = ({ file, onClose }) => {
 			const user_uuid = data.users?.find((i) => i.dms_erp_id === dmsInvoice.erp_user)?.user_uuid
 			if (!user_uuid)
 				errors.push({
-					errorType: localErrorTypes.user,
+					errorType: LOCAL_ERROR_TYPES.UNMAPPED_USER,
 					name: dmsInvoice.erp_user_name,
 					id: dmsInvoice.erp_user,
 				})
@@ -211,69 +211,84 @@ const ImportInvoices = ({ file, onClose }) => {
 			dms_items: [],
 		}
 
+		const buyerMap = new Map()
+
 		for (const invoice of json) {
 			payload.dms_counters.push(invoice.buyer_id)
 			payload.dms_users.push(invoice.erp_user)
 			payload.dms_invoice_numbers.push(invoice.invoice_number)
 			payload.dms_items = payload.dms_items.concat(invoice.items_details.map((i) => i.dms_erp_id))
+			buyerMap.set(invoice.invoice_number, invoice.buyer_name)
 		}
 
 		const response = await axios.post("/invoice-import-prerequisite", payload)
-		if (!response.data?.existing_invoice_orders?.length) {
-			setResults((prev) => ({ ...prev, total: prev.total + json.length, resolved: [] }))
-			processJson(json, response.data)
-		} else {
-			setFlags({ loading: false })
-			const callback = ({ skipped, reimported }) => {
-				setExistingInvoicesState(null)
-
-				if (skipped?.length > 0) {
-					const tempJson = json.filter((i) => !skipped?.includes(i.invoice_number))
-
-					skipped = json
-						?.filter((i) => skipped.includes(i.invoice_number))
-						?.map((i) => ({
-							dms_buyer_name: i.buyer_name,
-							dms_invoice_number: i.invoice_number,
-						}))
-
-					json = tempJson
-				}
-
-				if (reimported?.length > 0)
-					reimported = json
-						?.filter((i) => reimported.includes(i.invoice_number))
-						?.map((i) => ({
-							dms_buyer_name: i.buyer_name,
-							dms_invoice_number: i.invoice_number,
-						}))
-
-				setResults((prev) => ({
-					...prev,
-					total: prev.total + json.length,
-					skipped: prev.skipped.concat(skipped),
-					reimported: prev.reimported.concat(reimported),
-					resolved: [],
-				}))
-
-				processJson(json, response.data)
-			}
-
-			const list = response.data?.existing_invoice_orders?.map((i) => ({
-				...i.dms_details,
-				...i,
+		const skipped = response.data?.existing_invoice_orders?.reduce((obj, i) => ({
+			...obj,
+			[i.dms_details.invoice_number]: {
+				dms_buyer_name: buyerMap.get(i.dms_details.invoice_number),
 				dms_invoice_number: i.dms_details.invoice_number,
-				buyer_name: json.find((_i) => _i.invoice_number === i.dms_details.invoice_number)
-					?.buyer_name,
-			}))
+			}
+		}), {})
 
-			setExistingInvoicesState({ list: list, callback })
-		}
+		if (response.data?.existing_invoice_orders?.length)
+			json = json.filter((i) => !skipped[i.invoice_number])
+
+		setResults((prev) => ({ ...prev, total: prev.total + json.length, resolved: [], skipped }))
+		processJson(json, response.data)
+
+		// if (!response.data?.existing_invoice_orders?.length) {
+		// } else {
+		// 	setFlags({ loading: false })
+		// 	const callback = ({ skipped, reimported }) => {
+		// 		setExistingInvoicesState(null)
+
+		// 		if (skipped?.length > 0) {
+		// 			const tempJson = json.filter((i) => !skipped?.includes(i.invoice_number))
+
+		// 			skipped = json
+		// 				?.filter((i) => skipped.includes(i.invoice_number))
+		// 				?.map((i) => ({
+		// 					dms_buyer_name: i.buyer_name,
+		// 					dms_invoice_number: i.invoice_number,
+		// 				}))
+
+		// 			json = tempJson
+		// 		}
+
+		// 		if (reimported?.length > 0)
+		// 			reimported = json
+		// 				?.filter((i) => reimported.includes(i.invoice_number))
+		// 				?.map((i) => ({
+		// 					dms_buyer_name: i.buyer_name,
+		// 					dms_invoice_number: i.invoice_number,
+		// 				}))
+
+		// 		setResults((prev) => ({
+		// 			...prev,
+		// 			total: prev.total + json.length,
+		// 			skipped: prev.skipped.concat(skipped),
+		// 			reimported: prev.reimported.concat(reimported),
+		// 			resolved: [],
+		// 		}))
+
+		// 		processJson(json, response.data)
+		// 	}
+
+		// 	const list = response.data?.existing_invoice_orders?.map((i) => ({
+		// 		...i.dms_details,
+		// 		...i,
+		// 		dms_invoice_number: i.dms_details.invoice_number,
+		// 		buyer_name: json.find((_i) => _i.invoice_number === i.dms_details.invoice_number)
+		// 			?.buyer_name,
+		// 	}))
+
+		// 	setExistingInvoicesState({ list: list, callback })
+		// }
 	}
 
 	/**
 	 * For local errors: if all the errors for a doc have been resolved,
-	 * then move the 'doc->json' to resolved status.
+	 * then move doc.json to resolved status.
 	 */
 	const onMapped = (id) => {
 		setResults((prev) => {
@@ -639,7 +654,7 @@ const ResultStatusTabs = ({ result, onMapped, handleImportResolved }) => {
 														<p>
 															<b>{err.errorType} not found :</b> {err.name} - {err.id}
 														</p>
-														{!err.resolved && err.errorType === localErrorTypes.item && (
+														{!err.resolved && err.errorType === LOCAL_ERROR_TYPES.UNMAPPED_ITEM && (
 															<button className="map-item-btn" onClick={() => setMapItemState(err)}>
 																Map Item →
 															</button>
