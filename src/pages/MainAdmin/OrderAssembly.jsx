@@ -735,7 +735,7 @@ const OrderAssembly = () => {
   // 😵‍💫 boolean for if the counter is cooked or naah!
   // boolean: all items in all orders for that counter are completed (1) or cancelled (3)
   // excluding current item, of course!
-  const counterDoneStatus = (counterId, currItemId) => {
+  const getCounterDoneStatus = (counterId, currItemId) => {
     const counterOrders = ordersByCounter.get(counterId)
     // const _orders = []
     const hasUnProcessedItems = counterOrders?.some(i => {
@@ -753,12 +753,11 @@ const OrderAssembly = () => {
     const {id, idx, qty} = data || {}
     for (let i = 1; i <= attempts; i++) {
       try {
-        await new Promise((res,rej) => setTimeout(res("BLOODY HELL!"), 1000))
-        // await fetch(url, {
-        //   method: "GET",
-        //   mode: "no-cors",
-        //   signal,
-        // });
+        await fetch(url, {
+          method: "GET",
+          mode: "no-cors",
+          signal,
+        });
         if (data) {
           setDeviceCallStatus(prev =>
             prev?.retrying?.includes(id)
@@ -811,7 +810,7 @@ const OrderAssembly = () => {
       const base = deviceBases[idx];
       if (!base || doneCounterIds?.[c.uuid])  return Promise.resolve();
       
-      const isCounterDone = counterDoneStatus(c.uuid, selectedRowMeta.key)
+      const isCounterDone = getCounterDoneStatus(c.uuid, selectedRowMeta.key)
       const qty = perCounterCounts.get(c.uuid) ?? { b: 0, p: 0 };
       
       const valParam = isCounterDone ? "DONE" : formatVal(qty);

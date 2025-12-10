@@ -103,10 +103,12 @@ import AssemblyGrouping from "./pages/MainAdmin/AssemblyGrouping";
 /* ⭐ NEW: Assembly Devices page */
 import AssemblyDevices from "./pages/MainAdmin/AssemblyDevices"
 
-export const server = ["https://api.btgondia.com", "http://localhost:9000"][
-	window.location.origin.includes("btgondia")
-		? 0 // ! DONOT CHANGE THIS (for prod env)
-		: 0 // * for dev env (Switch to 0 for using prod server and 1 for localhost)
+export const server = ["https://api.btgondia.com", "https://dev.btgondia.com", "http://localhost:9000"][
+	window.location.origin.includes("dev.btgondia")
+	? 1 // ! DONOT CHANGE THIS (for dev server)
+	: window.location.origin.includes("btgondia")
+		? 0 // ! DONOT CHANGE THIS (for prod server)
+		: 0 // * for local env (for local server)
 ]
 
 export let Version = 413 // ? increment version count for each deployment rather than each count
