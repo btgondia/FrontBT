@@ -11,9 +11,9 @@ import Header from "../../components/Header";
 import axios from "axios";
 import "./style.css";
 import { useAssemblyProcessing } from "./AssemblyOrderProcessing";
-import { MdCheck, MdClose, MdReplay, MdSend } from "react-icons/md";
+import { MdCheckCircle, MdClose } from "react-icons/md";
 import { RiErrorWarningFill } from "react-icons/ri";
-import { CodeIcon } from "@heroicons/react/solid";
+import Loader from "../../components/Loader";
 
 const ORDER_ASSEMBLY_SS_KEY = "orderAssemblySelectedOrders";
 const ASSEMBLY_DEVICE_COUNT = 20
@@ -871,10 +871,12 @@ const OrderAssembly = () => {
   // we run actions only after the correct row is selected
   const pendingActionRef = useRef(null);
   const [pendingActionToken, setPendingActionToken] = useState(0);
+  const [loading, setLoading] = useState(false)
 
   // SAVE helper: just call the hook's save (buffer already knows changes)
   const handleAssemblySave = useCallback(() => {
-    save();
+    setLoading(true)
+    save().finally(() => setLoading(false))
   }, [save]);
 
   // whenever we have a pending action, process it (after selection is updated)
@@ -950,9 +952,10 @@ const OrderAssembly = () => {
   /* --------------------------- RENDER: MOBILE --------------------------- */
   if (isMobile || isMobileAssembly) {
     return (
-      <div className="right-side mobile-assembly">
+      <div className="right-side mobile-assembly relative">
         {/* Combined header with tabs + SAVE */}
         {/* TOP HEADER (new layout) */}
+        <Loader visible={loading} />
 
         {deviceCallStatus?.retrying?.length === 0 && deviceCallStatus?.failed?.[0] ? <div className="overlay">
           <div className="modal" style={{padding:15,paddingBottom:0,width:'480px',maxWidth:'95vw',position:'relative'}}>
@@ -1079,7 +1082,7 @@ const OrderAssembly = () => {
                   </button>
                 </div>
               </div>
-              <AssemblyDevicePlayground deviceBases={deviceBases} counters={uniqueCountersArr} />
+              <DeviceTesting deviceBases={deviceBases} counters={uniqueCountersArr} />
             </div>
           </div>
 
@@ -1769,30 +1772,21 @@ function randomStr(length) {
   return result;
 }
 
-const AssemblyDevicePlayground = ({deviceBases,counters}) => {
+const DeviceTesting = ({deviceBases,counters}) => {
   const [isOpen, setIsOpen] = useState()
-  const [messages, setMessages] = useState([])
+  const [message, setMessage] = useState()
   const [loading, setLoading] = useState(true)
-  const [playgroundState, setPlaygroundState] = useState({})
+  const [state, setState] = useState([])
 
-  const generateAll = () => {
-    const mssg = randomStr(4)
-    const mssgs = deviceBases.filter(i => i).map(() => mssg)
-    setMessages(mssgs)
-    return mssgs
-  }
-
-  const sendAll = async (mssgs, signal) => {
+  const sendAll = async (signal) => {
     setLoading(true)
     const reqs = []
-    const generatedMssgs = []
-    const main_mssg = randomStr(4)
+    const mssg = randomStr(4)
+    setMessage(mssg)
 
     for (let i = 0; i < deviceBases.length; i++) {
       const baseUrl = deviceBases[i];
       if (!baseUrl) continue
-      const mssg = mssgs ? mssgs[i] : main_mssg
-      if (!mssgs) generatedMssgs.push(mssg)
 
       const url = `${baseUrl}val=${mssg}`;
       reqs.push(
@@ -1800,22 +1794,17 @@ const AssemblyDevicePlayground = ({deviceBases,counters}) => {
           method: 'get',
           mode: "no-cors",
           signal: signal
-        }
-      ))
+        })
+      )
     }
-
-    if (!mssgs) setMessages(generatedMssgs)
 
     const results = await Promise.allSettled(reqs);
     if (signal?.aborted) return
-    setPlaygroundState(
-      Array.from(results).reduce((o, r, idx) => ({
-        ...o,
-        [idx]: {
-          succeed: r.status === "fulfilled",
-          error: r?.reason?.message || null
-        }
-      }), {})
+    setState(
+      Array.from(results).map((r) => ({
+        succeed: r.status === "fulfilled",
+        error: r?.reason?.message || null
+      }))
     )
     setLoading(false)
   }
@@ -1823,33 +1812,14 @@ const AssemblyDevicePlayground = ({deviceBases,counters}) => {
   useEffect(() => {
     if (!deviceBases?.[0] || !isOpen) return
     const controller = new AbortController()
-    sendAll(null, controller.signal)
+    sendAll(controller.signal)
     return () => {
       controller.abort()
       setLoading(true)
-      setMessages([])
-      setPlaygroundState({})
+      setMessage("")
+      setState([])
     }
   }, [deviceBases, isOpen])
-
-  const send = async (index) => {
-    try {
-      setPlaygroundState(p => ({ ...p, [index]: {loading: true} }))
-      const url = `${deviceBases[index]}val=${messages[index]}`;
-      await fetch(url, {
-        method: 'get',
-        mode: "no-cors",
-      })
-      setPlaygroundState(p => ({ ...p, [index]: {succeed:true} }))
-    } catch (error) {
-      setPlaygroundState(p => ({
-        ...p,
-        [index]: {
-          error: error?.response?.data?.message || error?.response?.data?.error || error?.message
-        }
-      }))
-    }
-  }
 
   return (
     <div>
@@ -1860,76 +1830,56 @@ const AssemblyDevicePlayground = ({deviceBases,counters}) => {
           padding: "6px 16px",
           borderRadius: 8,
           border: "none",
-          display:'flex',
-          alignItems:'center',
-          gap:'5px',
           fontSize: 16
         }}
         onClick={() => setIsOpen(true)}
       >
-        <CodeIcon style={{width:'18px'}} />
-        <span>Testing Playground</span>
+        <span>Test Devices</span>
       </button>
       {
         isOpen && <div className="overlay">
           <div className="modal" style={{width:'480px',maxWidth:'95vw',position:'relative',padding:0}}>
             <div className="modal-head" style={{background:"black"}}>
-              <h1 style={{fontSize:16,color:'white'}}>Assembly Device Testing Playground</h1>
+              <h1 style={{fontSize:16,color:'white'}}>Device Testing</h1>
             </div>
             <div className="modal-body">
-              <div>
-                <button style={{padding:'2px 3px',marginRight:'8px'}} onClick={() => generateAll()}>Regenerate</button>
-                <button style={{padding:'2px 3px',marginRight:'8px'}} onClick={() => sendAll(messages)}>Send</button>
-                <button style={{padding:'2px 3px',marginRight:'8px'}} onClick={() => sendAll()}>Generate & Send</button>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'12px'}}>
+                <div>
+                  <span style={{
+                    fontFamily: 'monospace',
+                    letterSpacing:8,
+                    paddingLeft:'5px',
+                    fontWeight:600,
+                    fontSize:24,
+                    marginRight: "10px"
+                  }}>{message}</span>
+                </div>
+                <button
+                  style={{padding:'6px 12px',marginRight:'8px',borderRadius:'10px',borderStyle:'solid',minWidth:'30%'}}
+                  onClick={() => sendAll()}
+                >Test</button>
               </div>
-              <ol style={{fontSize:14,marginBlock:20,marginLeft:15}}>
-                {
-                  messages?.map((i, idx) => (
-                    <li key={'mssg:'+idx} className="faded-markers" style={{marginBlock:'16px'}}>
-                      <span style={{
-                        fontFamily: 'monospace',
-                        letterSpacing:5,
-                        paddingLeft:'5px',
-                        fontWeight:500,
-                        fontSize:20,
-                        marginRight: "10px"
-                      }}>{i}</span>
-                      {playgroundState?.[idx]?.loading || loading
-                        ? <span className="loader x2-small" style={{marginLeft:'10px'}} />
-                        : <>
-                          <button
-                            style={{ display: 'inline-flex', marginLeft: '10px' }}
-                            onClick={() => setMessages(p => 
-                                p.slice(0, idx)
-                                .concat(randomStr(4))
-                                .concat(p.slice(idx + 1, p.length))
-                              )
-                            }
-                          >
-                            <MdReplay />
-                          </button>
-                          <button
-                            style={{ display: 'inline-flex', marginLeft: '10px' }}
-                            onClick={() => send(idx)}
-                          >
-                            <MdSend />
-                          </button>
-                        </>
-                      }
-                      {playgroundState?.[idx]?.succeed && <MdCheck color="#44cd4a" style={{fontSize:16,marginLeft:'10px'}} />}
-                      {counters[idx]?.counter_title}
-                      {playgroundState?.[idx]?.error &&
-                        <p style={{display:'flex',alignItems:'center',gap:'5px'}}>
-                          <RiErrorWarningFill color="red" style={{fontSize:18}} />
-                          <span style={{color:'rgb(85, 85, 85)'}}>
-                            {playgroundState?.[idx]?.error}
-                          </span>
-                        </p>
-                      }
-                    </li>
-                  ))
-                }
-              </ol>
+              <div className="relative">
+                <Loader visible={loading} />
+                <ol style={{fontSize:14,marginBlock:20,marginLeft:15}}>
+                  {
+                    state?.map((i, idx) => (
+                      <li key={'mssg:'+idx} className="faded-markers" style={{marginBlock: '16px'}}>
+                        <span style={{fontWeight:500}}>{counters[idx]?.title}</span>
+                        {i?.succeed && <MdCheckCircle color="#44cd4a" style={{fontSize:16,marginLeft:'10px',verticalAlign:'text-bottom'}} />}
+                        {i?.error &&
+                          <p style={{display:'flex',alignItems:'center',gap:'5px'}}>
+                            <RiErrorWarningFill color="red" style={{fontSize:18}} />
+                            <span style={{color:'rgb(85, 85, 85)'}}>
+                              {i?.error}
+                            </span>
+                          </p>
+                        }
+                      </li>
+                    ))
+                  }
+                </ol>
+              </div>
             </div>
             <button style={{position:'absolute',right:10,top:10,display:'flex'}} onClick={() => setIsOpen()}>
               <MdClose />

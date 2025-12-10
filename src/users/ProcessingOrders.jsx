@@ -143,15 +143,24 @@ const getTripOrders = async () => {
         if (response.data.success) {
             let data = response.data.result
 
-            if (response.data?.mobileOrderSequence === 1)
-                data = data.sort((a, b) => (a?.counter_name || "")?.localeCompare(b?.counter_name || ""))
+			// first sorting: user preference based
+			if (response.data?.mobileOrderSequence === 1)
+				data = data.sort((a, b) => (+a.sort_order || 0) - (+b.sort_order || 0))
+			else data.sort((a, b) => a.time_1 - b.time_1)
 
-            let sortedOrders = data.sort(
-                (a, b) =>
-                    +b?.order_grandtotal - +a?.order_grandtotal ||
-                    +b?.order_approx_qty - +a?.order_approx_qty
-            )
-            setOrders(sortedOrders)
+			// second sorting: priority based
+			data = data.sort((a, b) => (+b.priority || 0) - +a.priority)
+
+			// third sorting: to put all priority counters' orders altogether
+			let sortedOrders = data.reduce(
+				(result, order) =>
+					!result.some(i => i.counter_uuid === order.counter_uuid)
+						? result.concat(data.filter(i => i.counter_uuid === order.counter_uuid))
+						: result,
+				[]
+			)
+
+			setOrders(sortedOrders)
         }
     } catch (error) {
         
