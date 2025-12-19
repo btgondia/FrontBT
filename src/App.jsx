@@ -103,7 +103,7 @@ import AssemblyGrouping from "./pages/MainAdmin/AssemblyGrouping";
 /* ⭐ NEW: Assembly Devices page */
 import AssemblyDevices from "./pages/MainAdmin/AssemblyDevices"
 
-export const server = ["https://api.btgondia.com", "https://dev.btgondia.com", "http://localhost:9000"][
+export const server = ["https://api.btgondia.com", "https://dev.btgondia.com/api", "http://localhost:9000"][
 	window.location.origin.includes("dev.btgondia")
 	? 1 // ! DONOT CHANGE THIS (for dev server)
 	: window.location.origin.includes("btgondia")
