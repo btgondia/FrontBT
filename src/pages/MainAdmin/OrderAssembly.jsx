@@ -238,6 +238,7 @@ const OrderAssembly = () => {
   
   const [orders, setOrders] = useState([]);
   const [search, setSearch] = useState("");
+  const [counters, setCounters] = useState([])
   const [deviceCallStatus, setDeviceCallStatus] = useState()
 
   const [itemsMaster, setItemsMaster] = useState(
@@ -414,6 +415,8 @@ const OrderAssembly = () => {
         const list = Array.isArray(r.data?.result)
           ? r.data.result
           : r.data;
+
+        setCounters(list)
         const map = new Map();
 
         (list || []).forEach((c) => {
@@ -876,7 +879,7 @@ const OrderAssembly = () => {
   // SAVE helper: just call the hook's save (buffer already knows changes)
   const handleAssemblySave = useCallback(() => {
     setLoading(true)
-    save().finally(() => setLoading(false))
+    save({itemsMaster,counters}).finally(() => setLoading(false))
   }, [save]);
 
   // whenever we have a pending action, process it (after selection is updated)

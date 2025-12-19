@@ -636,10 +636,12 @@ useEffect(() => {
 				<h1
 					style={{
 						width: "70%",
-						textAlign: "left",
-						marginLeft: "30px",
-						padding: "10px 0",
-						textTransform: "capitalize"
+						marginLeft: "5px",
+						textTransform: "capitalize",
+						whiteSpace: "nowrap",
+						textOverflow: "ellipsis",
+						overflow: "hidden",
+						fontSize: "25px"
 					}}
 				>
 					{selectedOrder ? selectedOrder.counter_title : Location?.pathname?.split("/")?.filter(i => i)?.[1]}
@@ -1041,74 +1043,45 @@ useEffect(() => {
 												key={item.item_uuid+i}
 												style={{
 													height: window.location.pathname.includes("checking") ? "60px" : "35px",
+													fontWeight: 500,
 													backgroundColor:
 														window.location.pathname.includes("processing") ||
 														window.location.pathname.includes("delivery")
 															? +item.status === 1
-																? "green"
+																? "#32bd33"
 																: +item.status === 2
 																? "yellow"
 																: +item.status === 3
-																? "red"
+																? "#9f0000"
 																: "#fff"
 															: "#fff",
 													color: window.location.pathname.includes("processing")
-														? +item.status === 1 || +item.status === 3
+														? +item.status === 3
 															? "#fff"
 															: "#000"
 														: "#000"
 												}}
 											>
-												{selectedOrder &&
-												!(Location.pathname.includes("checking") || Location.pathname.includes("delivery")) ? (
-													<td
-														style={{ padding: "10px", height: "50px" }}
-														onClick={() => {
-															setItemChanged(prev =>
-																+item.status !== 1
-																	? [...prev, selectedOrder.item_details.find(a => a.item_uuid === item.item_uuid)]
-																	: prev
-															)
-															setOneTimeState()
-															setSelectedOrder(prev => ({
-																...prev,
-																item_details: prev.item_details.map(a =>
-																	a.item_uuid === item.item_uuid
-																		? {
-																				...a,
-																				status: +a.status === 1 ? 0 : 1
-																		  }
-																		: a
-																)
-															}))
+												{!Location.pathname.includes("checking") && (
+													<td>
+														<DeleteOutlineIcon
+															onClick={() => {
+																setOneTimeState()
 
-															audiosRef.current?.forEach(audio => {
-																if (audio.item_uuid === item.item_uuid) {
-																	audio.setAttribute("played", "true")
-																}
-															})
-															audioLoopFunction({
-																i: 0,
-																src: audiosRef.current,
-																callback: audioCallback
-															})
-														}}
-													>
-														{item.item_uuid === "" ? (
-															<AiFillPlayCircle
-																style={{
-																	fontSize: "25px",
-																	cursor: "pointer"
-																}}
-															/>
-														) : +item.status !== 1 ? (
-															<CheckCircleOutlineIcon />
-														) : (
-															""
-														)}
+																setSelectedOrder(prev => ({
+																	...prev,
+																	item_details: prev.item_details.map(a =>
+																		a.item_uuid === item.item_uuid
+																			? {
+																					...a,
+																					status: +a.status === 3 ? 0 : 3
+																			  }
+																			: a
+																	)
+																}))
+															}}
+														/>
 													</td>
-												) : (
-													""
 												)}
 												<td>{i + 1}</td>
 												<td
@@ -1166,7 +1139,6 @@ useEffect(() => {
 													{items.find(a => a.item_uuid === item.item_uuid)?.item_title}
 												</td>
 												<td>{items.find(a => a.item_uuid === item.item_uuid)?.mrp}</td>
-
 												<td
 													onClick={e => {
 														e.stopPropagation()
@@ -1213,29 +1185,54 @@ useEffect(() => {
 												) : (
 													""
 												)}
-												{!Location.pathname.includes("checking") ? (
-													<td>
-														<DeleteOutlineIcon
-															onClick={() => {
-																setOneTimeState()
+												{selectedOrder && !(Location.pathname.includes("checking") || Location.pathname.includes("delivery")) ? (
+													<td
+														style={{ padding: "10px", height: "50px" }}
+														onClick={() => {
+															setItemChanged(prev =>
+																+item.status !== 1
+																	? [...prev, selectedOrder.item_details.find(a => a.item_uuid === item.item_uuid)]
+																	: prev
+															)
+															setOneTimeState()
+															setSelectedOrder(prev => ({
+																...prev,
+																item_details: prev.item_details.map(a =>
+																	a.item_uuid === item.item_uuid
+																		? {
+																				...a,
+																				status: +a.status === 1 ? 0 : 1
+																		  }
+																		: a
+																)
+															}))
 
-																setSelectedOrder(prev => ({
-																	...prev,
-																	item_details: prev.item_details.map(a =>
-																		a.item_uuid === item.item_uuid
-																			? {
-																					...a,
-																					status: +a.status === 3 ? 0 : 3
-																			  }
-																			: a
-																	)
-																}))
-															}}
-														/>
+															audiosRef.current?.forEach(audio => {
+																if (audio.item_uuid === item.item_uuid) {
+																	audio.setAttribute("played", "true")
+																}
+															})
+															audioLoopFunction({
+																i: 0,
+																src: audiosRef.current,
+																callback: audioCallback
+															})
+														}}
+													>
+														{
+														// item.item_uuid === "" ? (
+														// 	<AiFillPlayCircle
+														// 		style={{
+														// 			fontSize: "25px",
+														// 			cursor: "pointer"
+														// 		}}
+														// 	/>
+														// ) : 
+														(
+															<CheckCircleOutlineIcon />
+														)}
 													</td>
-												) : (
-													""
-												)}
+												) : null}
 											</tr>
 										))
 								) : (
@@ -2121,9 +2118,10 @@ function HoldPopup({
 																	style={{
 																		height: "30px",
 																		fontSize: "12px",
+																		fontWeight: 500,
 																		color:
 																			+item.status === 1
-																				? "#fff"
+																				? "#000"
 																				: +item.status === 2
 																				? "#000"
 																				: +item.status === 3
@@ -2131,11 +2129,11 @@ function HoldPopup({
 																				: "#000",
 																		backgroundColor:
 																			+item.status === 1
-																				? "green"
+																				? "#32bd33"
 																				: +item.status === 2
 																				? "yellow"
 																				: +item.status === 3
-																				? "red"
+																				? "#9f0000"
 																				: "#fff"
 																	}}
 																	onClick={e => {
@@ -3609,7 +3607,7 @@ const OrdersEdit = ({ order, onSave, items, counter, itemsData, onClose }) => {
 														height: "30px",
 														color: "#fff",
 														backgroundColor: +deleteItemsOrder.filter(a => a === item.order_uuid).length
-															? "red"
+															? "#9f0000"
 															: "#7990dd"
 													}}
 												>

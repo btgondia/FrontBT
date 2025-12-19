@@ -235,7 +235,7 @@ export function useAssemblyProcessing({
   };
 
   // SAVE -> exact mobile flow using Session Storage full docs
-  const save = async () => {
+  const save = async ({itemsMaster,counters}) => {
     if (!buffer.length) {
       alert("No changes to save.");
       return;
@@ -263,7 +263,7 @@ export function useAssemblyProcessing({
     const user_uuid = localStorage.getItem("user_uuid") || "UNKNOWN_USER";
 
     for (const uuid of uuids) {
-      const full = sessionByUUID.get(uuid);
+      let full = sessionByUUID.get(uuid);
       if (!full) continue;
 
       // Ensure item_details exists (fallback to items if needed)
@@ -311,18 +311,36 @@ export function useAssemblyProcessing({
         full.opened_by = 0;
       }
 
+      const billingResponse = await Billing({
+        order_uuid: full?.order_uuid,
+        invoice_number: `${full?.order_type}${full?.invoice_number}`,
+        replacement: full.replacement,
+        adjustment: full.adjustment,
+        shortage: full.shortage,
+        counter: counters.find(a => a.counter_uuid === data.counter_uuid),
+        items: full.item_details.map(a => {
+          let itemData = itemsMaster.find(b => a.item_uuid === b.item_uuid)
+          return {
+            ...itemData,
+            ...a
+          }
+        })
+      })
+
+      full = { ...full, ...billingResponse }
+
       // Try project Billing (if present) but don't rely on it for totals
-      try {
-        if (typeof Billing === "function") Billing(full);
-      } catch (e) {
-        console.warn("Billing error (continuing):", e);
-      }
+      // try {
+      //   if (typeof Billing === "function") Billing(full);
+      // } catch (e) {
+      //   console.warn("Billing error (continuing):", e);
+      // }
 
       // **Authoritative** local recompute for line totals + grand total
-      recalcLineAndGrandTotals(full);
+      // recalcLineAndGrandTotals(full);
 
       // **Dashboard-style rounding** (₹, no paise)
-      applyDashboardGrandTotalRounding(full);
+      // applyDashboardGrandTotalRounding(full);
 
       // Append stage "2" only if every line is 1 or 3
       if (allDoneOrCancelled(full.item_details)) {
