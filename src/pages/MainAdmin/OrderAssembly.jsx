@@ -813,10 +813,11 @@ const OrderAssembly = () => {
       const base = deviceBases[idx];
       if (!base || doneCounterIds?.[c.uuid])  return Promise.resolve();
       
+      const isCancel = pendingActionRef.current?.status === 3
       const isCounterDone = getCounterDoneStatus(c.uuid, selectedRowMeta.key)
-      const qty = perCounterCounts.get(c.uuid) ?? { b: 0, p: 0 };
+      const qty = (isCancel ? null : perCounterCounts.get(c.uuid)) ?? { b: 0, p: 0 };
       
-      const valParam = isCounterDone ? "DONE" : formatVal(qty);
+      const valParam = isCounterDone ? "DONE" : isCancel ? "XXXX" : formatVal(qty);
       const finalUrl = `${base}val=${encodeURIComponent(valParam)}`;
 
       const id = Date.now().toString() + idx
@@ -839,7 +840,7 @@ const OrderAssembly = () => {
       setApiLoading(true)
       try {
         setDeviceCallStatus({})
-        const result = await Promise.all(uniqueCountersArr.map((c, idx) => makeCounterCalls(c, idx, controller )));
+        const result = await Promise.all(uniqueCountersArr.map((c, idx) => makeCounterCalls(c, idx, controller)));
         const doneCounterIdsLocal = result?.reduce((obj, i) => ({ ...obj, ...i }), {})
         if (Object.values(doneCounterIdsLocal)?.[0]) setDoneCounterIds(p => ({...(p || {}), ...doneCounterIdsLocal }))
       } catch (err) {
@@ -925,7 +926,7 @@ const OrderAssembly = () => {
   const toggleCompleteForItemKey = useCallback(
     (key) => {
       const current = previewStatusByItemKey?.get?.(key) ?? 0;
-      const next = current === 1 ? 0 : 1; // same button → revert
+      const next = current === 1 ? 0 : 1;
       applyStatusForKey(key, next);
       setDeviceTriggerCounter((c) => c + 1);
     },
@@ -948,6 +949,7 @@ const OrderAssembly = () => {
       const current = previewStatusByItemKey?.get?.(key) ?? 0;
       const next = current === 3 ? 0 : 3;
       applyStatusForKey(key, next);
+      if (next) setDeviceTriggerCounter((c) => c + 1)
     },
     [previewStatusByItemKey, applyStatusForKey]
   );

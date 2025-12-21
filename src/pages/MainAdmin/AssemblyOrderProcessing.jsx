@@ -317,7 +317,7 @@ export function useAssemblyProcessing({
         replacement: full.replacement,
         adjustment: full.adjustment,
         shortage: full.shortage,
-        counter: counters.find(a => a.counter_uuid === data.counter_uuid),
+        counter: counters.find(a => a.counter_uuid === full.counter_uuid),
         items: full.item_details.map(a => {
           let itemData = itemsMaster.find(b => a.item_uuid === b.item_uuid)
           return {
