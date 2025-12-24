@@ -14,6 +14,7 @@ import { useAssemblyProcessing } from "./AssemblyOrderProcessing";
 import { MdCheckCircle, MdClose } from "react-icons/md";
 import { RiErrorWarningFill } from "react-icons/ri";
 import Loader from "../../components/Loader";
+import BarcodeInput from "../../components/BarcodeInput";
 
 const ORDER_ASSEMBLY_SS_KEY = "orderAssemblySelectedOrders";
 const ASSEMBLY_DEVICE_COUNT = 20
@@ -50,13 +51,9 @@ const sumOrdersTotal = (orders = []) =>
 
 const buildItemsIndex = (items = []) => {
   const idx = new Map();
-  for (const it of items) {
-    const key =
-      it?.item_uuid ||
-      it?.ITEM_UUID ||
-      it?.uuid ||
-      it?.item_code ||
-      it?._id;
+  for (let index=0; index < items.length; index++) {
+    const it = items[index]
+    const key =it?.item_uuid || it?._id;
     if (!key) continue;
     idx.set(String(key), {
       name:
@@ -226,6 +223,11 @@ function computeItemSummary(orders = [], itemsIdx, catIdx) {
   return out;
 }
 
+const ASSEMBLY_MODES = {
+  NORMAL:"normal",
+  DEVICE:"device"
+}
+
 /* ------------------------------- page ------------------------------- */
 const OrderAssembly = () => {
   // force mobile layout on /users/processing route (for testing on PC)
@@ -257,6 +259,7 @@ const OrderAssembly = () => {
   const [mobileTab, setMobileTab] = useState("items"); // "items" | "crate"
 
   const [apiLoading, setApiLoading] = useState()
+  const [mode, setMode] = useState(ASSEMBLY_MODES.NORMAL)
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -832,6 +835,7 @@ const OrderAssembly = () => {
   }
 
   useEffect(() => {
+    if (mode !== ASSEMBLY_MODES.DEVICE) return;
     if (!uniqueCountersArr || uniqueCountersArr.length === 0) return;
     if (!selectedRowMeta.key && !selectedRowMeta.name) return;
 
@@ -954,6 +958,14 @@ const OrderAssembly = () => {
     [previewStatusByItemKey, applyStatusForKey]
   );
 
+  const handleBarcodeScan = (code) => {
+    // console.log("SCANNED CODE", code)
+    const item = itemsMaster.find(i => i.barcode?.includes?.(code))
+    // console.log("FOUND ITEM", item)
+    const itemKey = item?.item_uuid || item?._id
+    if (itemKey) toggleCompleteForItemKey(itemKey)
+  }
+
   /* --------------------------- RENDER: MOBILE --------------------------- */
   if (isMobile || isMobileAssembly) {
     return (
@@ -1010,8 +1022,8 @@ const OrderAssembly = () => {
                 display: "flex",
                 padding: "10px 12px",
                 gap: '20px',
-                width:'calc(100vw + 260px)',
-                maxWidth:'calc(500px + 260px)',
+                width:'calc(100vw + 320px)',
+                maxWidth:'calc(500px + 320px)',
               }}
             >
               <div style={{
@@ -1039,55 +1051,71 @@ const OrderAssembly = () => {
                 </button>
 
                 <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, }}>
-                  {
-                    (apiLoading || deviceCallStatus?.retrying?.length) ? <span
-                      style={{
-                        fontSize: 12,
-                        color: "#B45309",
-                        background: "#FEF3C7",
-                        padding: "4px 8px",
-                        borderRadius: 6,
-                        display:'flex',
-                        gap: 6,
-                      }}
-                    >
-                      <span>
-                        {apiLoading ? "Updating Devices": `Retrying ${deviceCallStatus?.retrying?.length}`}
+                  {mode === ASSEMBLY_MODES.DEVICE && <>
+                    {
+                      (apiLoading || deviceCallStatus?.retrying?.length) ? <span
+                        style={{
+                          fontSize: 12,
+                          color: "#B45309",
+                          background: "#FEF3C7",
+                          padding: "4px 8px",
+                          borderRadius: 6,
+                          display:'flex',
+                          gap: 6,
+                        }}
+                      >
+                        <span>
+                          {apiLoading ? "Updating Devices": `Retrying ${deviceCallStatus?.retrying?.length}`}
+                        </span>
+                        <span className="loader x2-small" style={{borderColor:"#B45309"}} />
+                      </span> : null
+                    }
+                    {pendingCount > 0 && (
+                      <span
+                        style={{
+                          fontSize: 14,
+                          color: "#B45309",
+                          background: "#FEF3C7",
+                          padding: "4px 8px",
+                          borderRadius: 6,
+                        }}
+                      >
+                        {pendingCount} pending
                       </span>
-                      <span className="loader x2-small" style={{borderColor:"#B45309"}} />
-                    </span> : null
-                  }
-                  {pendingCount > 0 && (
-                    <span
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleAssemblySave}
                       style={{
-                        fontSize: 14,
-                        color: "#B45309",
-                        background: "#FEF3C7",
-                        padding: "4px 8px",
-                        borderRadius: 6,
+                        background: "#10B981",
+                        color: "white",
+                        padding: "6px 16px",
+                        borderRadius: 8,
+                        border: "none",
+                        fontWeight: 700,
+                        fontSize: 15,
                       }}
                     >
-                      {pendingCount} pending
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleAssemblySave}
-                    style={{
-                      background: "#10B981",
-                      color: "white",
-                      padding: "6px 16px",
-                      borderRadius: 8,
-                      border: "none",
-                      fontWeight: 700,
-                      fontSize: 15,
-                    }}
-                  >
-                    SAVE
-                  </button>
+                      SAVE
+                    </button>
+                  </>}
                 </div>
               </div>
-              <DeviceTesting deviceBases={deviceBases} counters={uniqueCountersArr} />
+              {mode === ASSEMBLY_MODES.DEVICE && <DeviceTesting deviceBases={deviceBases} counters={uniqueCountersArr} />}
+              <div style={{border:"1px solid #cccccc", borderRadius: "200px",background:"#dddddd",display:"flex",padding:"2px"}}>
+                {
+                  Object.entries(ASSEMBLY_MODES).map(([key, val]) => (
+                    <button
+                      key={key}
+                      style={{
+                        borderRadius:"200px",padding:"6px 15px",border:"none",textTransform:'capitalize',
+                        ...(mode === val ? ({background:"#10B981",color:"#fff"}) : {background:"#dddddd"})
+                      }}
+                      onClick={() => setMode(val)}
+                    >{key.toLowerCase()}</button>
+                  ))
+                }
+              </div>
             </div>
           </div>
 
@@ -1171,6 +1199,8 @@ const OrderAssembly = () => {
                 fontSize: 13,
               }}
             />
+
+            <BarcodeInput onScan={handleBarcodeScan} />
           </div>
         </div>
 
@@ -1779,8 +1809,8 @@ function randomStr(length) {
 
 const DeviceTesting = ({deviceBases,counters}) => {
   const [isOpen, setIsOpen] = useState()
-  const [message, setMessage] = useState()
-  const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState("----")
+  const [loading, setLoading] = useState(false)
   const [state, setState] = useState([])
 
   const sendAll = async (signal) => {
@@ -1814,17 +1844,17 @@ const DeviceTesting = ({deviceBases,counters}) => {
     setLoading(false)
   }
 
-  useEffect(() => {
-    if (!deviceBases?.[0] || !isOpen) return
-    const controller = new AbortController()
-    sendAll(controller.signal)
-    return () => {
-      controller.abort()
-      setLoading(true)
-      setMessage("")
-      setState([])
-    }
-  }, [deviceBases, isOpen])
+  // useEffect(() => {
+  //   if (!deviceBases?.[0] || !isOpen) return
+  //   // const controller = new AbortController()
+  //   // sendAll(controller.signal)
+  //   return () => {
+  //     controller.abort()
+  //     setLoading(true)
+  //     setMessage("")
+  //     setState([])
+  //   }
+  // }, [deviceBases, isOpen])
 
   return (
     <div>
