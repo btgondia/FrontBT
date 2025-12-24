@@ -31,7 +31,7 @@ export default function BarcodeInput({ onScan }) {
 				onBlur={() => setIsFocused(false)}
 				autoFocus
 				placeholder='Scan barcode'
-				style={{ opacity: 1, position: "absolute", pointerEvents:'none' }}
+				style={{ opacity: 0, position: "absolute", pointerEvents:'none' }}
 			/>
 			<button
 				onClick={focusInput}
