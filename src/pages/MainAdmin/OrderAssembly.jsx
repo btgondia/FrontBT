@@ -793,7 +793,7 @@ const OrderAssembly = () => {
                 ...(prev?.failed || []),
                 {
                   idx,
-                  message,
+                  passedMessage: message,
                   message:
                     err?.response?.data?.message ||
                     err?.response?.data?.error ||
@@ -1013,7 +1013,7 @@ const OrderAssembly = () => {
                   deviceCallStatus.failed.map(i => (
                     <li key={"error-detail:"+i.idx} className="faded-markers" style={{marginBottom: '8px'}}>
                       <b>{'#'}{i.idx + 1} {uniqueCountersArr[i.idx]?.title} [{
-                        i.message || `${i.qty?.b || 0}:${i.qty?.p || 0}`
+                        i.passedMessage || `${i.qty?.b || 0}:${i.qty?.p || 0}`
                       }]</b>
                       <br />
                       <p style={{display:'flex',alignItems:'center',gap:'5px'}}>
