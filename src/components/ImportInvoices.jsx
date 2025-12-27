@@ -39,6 +39,7 @@ const ImportInvoices = ({ file, onClose }) => {
 		}
 
 		try {
+			if (!dmsInvoice?.invoice_number) throw Error("DMS invoice number not found.")
 			billingParams.counter = data.counters.find((i) => i.dms_buyer_id === dmsInvoice.buyer_id)
 
 			const errors = []
@@ -216,7 +217,7 @@ const ImportInvoices = ({ file, onClose }) => {
 		for (const invoice of json) {
 			payload.dms_counters.push(invoice.buyer_id)
 			payload.dms_users.push(invoice.erp_user)
-			payload.dms_invoice_numbers.push(invoice.invoice_number)
+			if (invoice.invoice_number) payload.dms_invoice_numbers.push(invoice.invoice_number)
 			payload.dms_items = payload.dms_items.concat(invoice.items_details.map((i) => i.dms_erp_id))
 			buyerMap.set(invoice.invoice_number, invoice.buyer_name)
 		}

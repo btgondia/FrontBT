@@ -11,13 +11,35 @@ import Header from "../../components/Header";
 import axios from "axios";
 import "./style.css";
 import { useAssemblyProcessing } from "./AssemblyOrderProcessing";
-import { MdCheckCircle, MdClose } from "react-icons/md";
+import { MdClose } from "react-icons/md";
 import { RiErrorWarningFill } from "react-icons/ri";
 import Loader from "../../components/Loader";
-import BarcodeInput from "../../components/BarcodeInput";
+import BarcodeInput from "./order-assembly/BarcodeInput";
+import DeviceTesting from "./order-assembly/DeviceTesting";
 
 const ORDER_ASSEMBLY_SS_KEY = "orderAssemblySelectedOrders";
 const ASSEMBLY_DEVICE_COUNT = 20
+const DEVICE_MESSAGE = {
+  DONE: "DONE",
+  CANCEL: "XXXX",
+  UNTICK: "UT",
+  NOT_FOUND: "NF",
+  formatMessage: function ({ b = 0, p = 0 } = {}) {
+    const B = Number.isFinite(+b) ? +b : 0;
+    const P = Number.isFinite(+p) ? +p : 0;
+    return B === 0 ? String(P) : `${B}x${P}`;
+  }
+}
+const ITEM_STATUS = {
+  IN_PROCESSING: 0,
+  COMPLETE: 1,
+  HOLD: 2,
+  CANCEL: 3,
+}
+const ASSEMBLY_MODES = {
+  NORMAL:"normal",
+  DEVICE:"device"
+}
 
 /* ----------------- helpers ----------------- */
 const norm = (s) => String(s ?? "").trim();
@@ -145,8 +167,8 @@ function computeItemSummary(orders = [], itemsIdx, catIdx) {
       o?.invoice_number ||
       Math.random().toString(36).slice(2);
     for (const ln of lines) {
-      const s = +ln?.status; // 1=Complete, 2=Hold, 3=Cancel
-      if (s === 1 || s === 2 || s === 3) continue;
+      const s = +ln?.status;
+      if (Object.values(ITEM_STATUS).slice(1).includes(s)) continue;
 
       const itemKey = String(
         lineItemId(ln) || getName(ln, itemsIdx)
@@ -221,11 +243,6 @@ function computeItemSummary(orders = [], itemsIdx, catIdx) {
     return a.category.localeCompare(b.category);
   });
   return out;
-}
-
-const ASSEMBLY_MODES = {
-  NORMAL:"normal",
-  DEVICE:"device"
 }
 
 /* ------------------------------- page ------------------------------- */
@@ -687,7 +704,7 @@ const OrderAssembly = () => {
         };
       for (const ln of lines) {
         const st = +ln?.status;
-        if (st === 1 || st === 2 || st === 3) continue;
+        if (Object.values(ITEM_STATUS).slice(1).includes(st)) continue;
 
         const id = String(
           ln?.item_uuid_v2 ||
@@ -731,32 +748,20 @@ const OrderAssembly = () => {
   // increments on every action button click (used to trigger device updates)
   const [deviceTriggerCounter, setDeviceTriggerCounter] = useState(0);
 
-  // Device updates – still uses b & p (now normalized) and same URLs
-  const formatVal = ({ b = 0, p = 0 }) => {
-    const B = Number.isFinite(+b) ? +b : 0;
-    const P = Number.isFinite(+p) ? +p : 0;
-    return B === 0 ? String(P) : `${B}x${P}`;
-  };
-
-  // 😵‍💫 boolean for if the counter is cooked or naah!
   // boolean: all items in all orders for that counter are completed (1) or cancelled (3)
   // excluding current item, of course!
   const getCounterDoneStatus = (counterId, currItemId) => {
     const counterOrders = ordersByCounter.get(counterId)
-    // const _orders = []
     const hasUnProcessedItems = counterOrders?.some(i => {
       const order = orders.find(o => [o.invoice_number.split("-")[1], o.order_uuid].includes(i.number.toString()))
-      // _orders.push(order)
-      return order.item_details?.some(i => (i.status !== 1 && i.status !== 3) || i.item_uuid === currItemId)
+      return order.item_details?.some(i => (i.status !== ITEM_STATUS.COMPLETE && i.status !== ITEM_STATUS.CANCEL) || i.item_uuid === currItemId)
     })
-
-    // if (!hasUnProcessedItems) console.log({hasUnProcessedItems, counterOrders, orders: _orders, counterId, currItemId})
 
     return !hasUnProcessedItems
   }
 
   async function fetchWithRetry(url, attempts = 3, signal, data) {
-    const {id, idx, qty} = data || {}
+    const {id, idx, message} = data || {}
     for (let i = 1; i <= attempts; i++) {
       try {
         await fetch(url, {
@@ -788,7 +793,7 @@ const OrderAssembly = () => {
                 ...(prev?.failed || []),
                 {
                   idx,
-                  qty,
+                  message,
                   message:
                     err?.response?.data?.message ||
                     err?.response?.data?.error ||
@@ -812,27 +817,45 @@ const OrderAssembly = () => {
   // console.log(deviceCallStatus)
 
   const makeCounterCalls = async (c, idx, controller) => {
+    const result = {}
     try {
       const base = deviceBases[idx];
       if (!base || doneCounterIds?.[c.uuid])  return Promise.resolve();
-      
-      const isCancel = pendingActionRef.current?.status === 3
+
+      let message = pendingActionRef.current?.message
+
       const isCounterDone = getCounterDoneStatus(c.uuid, selectedRowMeta.key)
-      const qty = (isCancel ? null : perCounterCounts.get(c.uuid)) ?? { b: 0, p: 0 };
+      if (isCounterDone) {
+        result[c.uuid] = true
+        message = DEVICE_MESSAGE.DONE
+      } else if (!message) {
+        message = DEVICE_MESSAGE.formatMessage(perCounterCounts.get(c.uuid))
+      }
       
-      const valParam = isCounterDone ? "DONE" : isCancel ? "XXXX" : formatVal(qty);
-      const finalUrl = `${base}val=${encodeURIComponent(valParam)}`;
+      const finalUrl = `${base}val=${encodeURIComponent(message)}`;
 
       const id = Date.now().toString() + idx
-      await fetchWithRetry(finalUrl, 3, controller.signal, { id, idx, qty })
-
-      if (isCounterDone) return { [c.uuid]: true }
-      else return {}
+      await fetchWithRetry(finalUrl, 3, controller?.signal, { id, idx, message })
     } catch (error) {
       console.error(error)
-      return {}
     }
+    return result
   }
+
+  const send = async (controller) => {
+    setApiLoading(true)
+    try {
+      setDeviceCallStatus({})
+      const result = await Promise.all(
+        uniqueCountersArr.map((c, idx) => makeCounterCalls(c, idx, controller))
+      );
+      const doneCounterIdsLocal = result?.reduce((obj, i) => ({ ...obj, ...i }), {})
+      if (Object.values(doneCounterIdsLocal)?.[0]) setDoneCounterIds(p => ({...(p || {}), ...doneCounterIdsLocal }))
+    } catch (err) {
+      console.error(err)
+    }
+    setApiLoading(false)
+  };
 
   useEffect(() => {
     if (mode !== ASSEMBLY_MODES.DEVICE) return;
@@ -840,19 +863,7 @@ const OrderAssembly = () => {
     if (!selectedRowMeta.key && !selectedRowMeta.name) return;
 
     const controller = new AbortController();
-    const send = async () => {
-      setApiLoading(true)
-      try {
-        setDeviceCallStatus({})
-        const result = await Promise.all(uniqueCountersArr.map((c, idx) => makeCounterCalls(c, idx, controller)));
-        const doneCounterIdsLocal = result?.reduce((obj, i) => ({ ...obj, ...i }), {})
-        if (Object.values(doneCounterIdsLocal)?.[0]) setDoneCounterIds(p => ({...(p || {}), ...doneCounterIdsLocal }))
-      } catch (err) {
-        console.error(err)
-      }
-      setApiLoading(false)
-    };
-    send();
+    send(controller);
     return () => controller.abort();
   }, [
     deviceTriggerCounter,
@@ -861,6 +872,20 @@ const OrderAssembly = () => {
     deviceBases,
     selectedRowMeta,
   ]);
+
+  const getMessageForStatus = (nextStatus, currentStatus) => {
+    if (typeof currentStatus !== "number")
+      return DEVICE_MESSAGE.NOT_FOUND
+
+    if (nextStatus === ITEM_STATUS.CANCEL)
+      return DEVICE_MESSAGE.CANCEL
+    
+    if (
+      nextStatus === ITEM_STATUS.IN_PROCESSING
+      && currentStatus === ITEM_STATUS.COMPLETE
+    )
+      return DEVICE_MESSAGE.UNTICK
+  }
 
   // Processing hook – NO auto-move now
   const onQueued = useCallback(() => {}, []);
@@ -912,10 +937,14 @@ const OrderAssembly = () => {
   }, [filtered, previewStatusByItemKey]);
 
   const applyStatusForKey = useCallback(
-    (key, status) => {
+    (key, nextStatus, currentStatus) => {
       if (!key) return;
       // store which key & status we want to apply
-      pendingActionRef.current = { key, status };
+      pendingActionRef.current = {
+        key,
+        status: nextStatus,
+        message: getMessageForStatus(nextStatus, currentStatus)
+      };
       // update selection so selectedRowMeta matches this key
       setSelectedKey(key);
       // trigger the effect that will call queueActionForSelectedItem
@@ -929,9 +958,9 @@ const OrderAssembly = () => {
   // COMPLETE toggle
   const toggleCompleteForItemKey = useCallback(
     (key) => {
-      const current = previewStatusByItemKey?.get?.(key) ?? 0;
+      const current = previewStatusByItemKey?.get?.(key);
       const next = current === 1 ? 0 : 1;
-      applyStatusForKey(key, next);
+      applyStatusForKey(key, next, current);
       setDeviceTriggerCounter((c) => c + 1);
     },
     [previewStatusByItemKey, applyStatusForKey]
@@ -940,9 +969,9 @@ const OrderAssembly = () => {
   // HOLD toggle
   const holdItemByKey = useCallback(
     (key) => {
-      const current = previewStatusByItemKey?.get?.(key) ?? 0;
+      const current = previewStatusByItemKey?.get?.(key);
       const next = current === 2 ? 0 : 2;
-      applyStatusForKey(key, next);
+      applyStatusForKey(key, next, current);
     },
     [previewStatusByItemKey, applyStatusForKey]
   );
@@ -950,9 +979,9 @@ const OrderAssembly = () => {
   // CANCEL toggle
   const cancelItemByKey = useCallback(
     (key) => {
-      const current = previewStatusByItemKey?.get?.(key) ?? 0;
+      const current = previewStatusByItemKey?.get?.(key);
       const next = current === 3 ? 0 : 3;
-      applyStatusForKey(key, next);
+      applyStatusForKey(key, next, current);
       if (next) setDeviceTriggerCounter((c) => c + 1)
     },
     [previewStatusByItemKey, applyStatusForKey]
@@ -983,7 +1012,9 @@ const OrderAssembly = () => {
                 {
                   deviceCallStatus.failed.map(i => (
                     <li key={"error-detail:"+i.idx} className="faded-markers" style={{marginBottom: '8px'}}>
-                      <b>{'#'}{i.idx + 1} {uniqueCountersArr[i.idx]?.title} [{i.qty?.b}:{i.qty?.p}]</b>
+                      <b>{'#'}{i.idx + 1} {uniqueCountersArr[i.idx]?.title} [{
+                        i.message || `${i.qty?.b || 0}:${i.qty?.p || 0}`
+                      }]</b>
                       <br />
                       <p style={{display:'flex',alignItems:'center',gap:'5px'}}>
                         <RiErrorWarningFill color="red" style={{fontSize:18}} />
@@ -1796,132 +1827,3 @@ const OrderAssembly = () => {
 };
 
 export default OrderAssembly;
-
-function randomStr(length) {
-  let result = '';
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  const charactersLength = characters.length;
-  for (let i = 0; i < length; i++) {
-      result += characters.charAt(Math.floor(Math.random() * charactersLength));
-  }
-  return result;
-}
-
-const DeviceTesting = ({deviceBases,counters}) => {
-  const [isOpen, setIsOpen] = useState()
-  const [message, setMessage] = useState("----")
-  const [loading, setLoading] = useState(false)
-  const [state, setState] = useState([])
-
-  const sendAll = async (signal) => {
-    setLoading(true)
-    const reqs = []
-    const mssg = randomStr(4)
-    setMessage(mssg)
-
-    for (let i = 0; i < deviceBases.length; i++) {
-      const baseUrl = deviceBases[i];
-      if (!baseUrl) continue
-
-      const url = `${baseUrl}val=${mssg}`;
-      reqs.push(
-        fetch(url, {
-          method: 'get',
-          mode: "no-cors",
-          signal: signal
-        })
-      )
-    }
-
-    const results = await Promise.allSettled(reqs);
-    if (signal?.aborted) return
-    setState(
-      Array.from(results).map((r) => ({
-        succeed: r.status === "fulfilled",
-        error: r?.reason?.message || null
-      }))
-    )
-    setLoading(false)
-  }
-
-  // useEffect(() => {
-  //   if (!deviceBases?.[0] || !isOpen) return
-  //   // const controller = new AbortController()
-  //   // sendAll(controller.signal)
-  //   return () => {
-  //     controller.abort()
-  //     setLoading(true)
-  //     setMessage("")
-  //     setState([])
-  //   }
-  // }, [deviceBases, isOpen])
-
-  return (
-    <div>
-      <button
-        style={{
-          background: "#1E90FF",
-          color: "white",
-          padding: "6px 16px",
-          borderRadius: 8,
-          border: "none",
-          fontSize: 16
-        }}
-        onClick={() => setIsOpen(true)}
-      >
-        <span>Test Devices</span>
-      </button>
-      {
-        isOpen && <div className="overlay">
-          <div className="modal" style={{width:'480px',maxWidth:'95vw',position:'relative',padding:0}}>
-            <div className="modal-head" style={{background:"black"}}>
-              <h1 style={{fontSize:16,color:'white'}}>Device Testing</h1>
-            </div>
-            <div className="modal-body">
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'12px'}}>
-                <div>
-                  <span style={{
-                    fontFamily: 'monospace',
-                    letterSpacing:8,
-                    paddingLeft:'5px',
-                    fontWeight:600,
-                    fontSize:24,
-                    marginRight: "10px"
-                  }}>{message}</span>
-                </div>
-                <button
-                  style={{padding:'6px 12px',marginRight:'8px',borderRadius:'10px',borderStyle:'solid',minWidth:'30%'}}
-                  onClick={() => sendAll()}
-                >Test</button>
-              </div>
-              <div className="relative">
-                <Loader visible={loading} />
-                <ol style={{fontSize:14,marginBlock:20,marginLeft:15}}>
-                  {
-                    state?.map((i, idx) => (
-                      <li key={'mssg:'+idx} className="faded-markers" style={{marginBlock: '16px'}}>
-                        <span style={{fontWeight:500}}>{counters[idx]?.title}</span>
-                        {i?.succeed && <MdCheckCircle color="#44cd4a" style={{fontSize:16,marginLeft:'10px',verticalAlign:'text-bottom'}} />}
-                        {i?.error &&
-                          <p style={{display:'flex',alignItems:'center',gap:'5px'}}>
-                            <RiErrorWarningFill color="red" style={{fontSize:18}} />
-                            <span style={{color:'rgb(85, 85, 85)'}}>
-                              {i?.error}
-                            </span>
-                          </p>
-                        }
-                      </li>
-                    ))
-                  }
-                </ol>
-              </div>
-            </div>
-            <button style={{position:'absolute',right:10,top:10,display:'flex'}} onClick={() => setIsOpen()}>
-              <MdClose />
-            </button>
-          </div>
-        </div>
-      }
-    </div>
-  )
-}
