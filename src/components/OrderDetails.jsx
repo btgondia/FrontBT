@@ -45,11 +45,12 @@ import {
 } from "../utils/helperFunctions"
 import { useLocation } from "react-router-dom"
 import { getInitialOrderValue } from "../utils/constants"
-import { MdCurrencyRupee, MdDownloadDone, MdFileDownloadDone, MdLocalOffer, MdOutlineEdit, MdOutlineEditOff, MdReplay } from "react-icons/md"
+import { MdCurrencyRupee, MdDownloadDone, MdFileDownloadDone, MdLocalOffer, MdOutlineEdit, MdOutlineEditOff, MdOutlineHistory, MdReplay } from "react-icons/md"
 import { RiPercentFill } from "react-icons/ri";
 import { IoMdCloseCircle } from "react-icons/io";
 
 import "./orderDetails.css"
+import { ITEM_STATUS_LABELS } from "../pages/MainAdmin/OrderAssembly"
 
 const default_status = [
 	{ value: 0, label: "Preparing" },
@@ -132,10 +133,11 @@ export function OrderDetails({
 	const [warehousePopup, setWarhousePopup] = useState(false)
 	const [users, setUsers] = useState([])
 	const [tripData, setTripData] = useState([])
-	const [uuids, setUuid] = useState()
+	// const [uuids, setUuid] = useState()
 	const [popupDetails, setPopupDetails] = useState()
 	const [popupDiscount, setPopupDiscount] = useState()
-	const [copymsg, setCopymsg] = useState()
+	const [itemAssemblyLogs, setItemAssemblyLogs] = useState()
+	// const [copymsg, setCopymsg] = useState()
 	const [notesPopup, setNotesPoup] = useState()
 	const [counterNotesPopup, setCounterNotesPoup] = useState()
 	const [popupForm, setPopupForm] = useState()
@@ -1753,9 +1755,9 @@ export function OrderDetails({
 														<>
 															<th>Sp Disc</th>
 															<th></th>
-															<th></th>
 														</>
 													) : null}
+													<th></th>
 												</tr>
 											</thead>
 											<tbody className="lh-copy">
@@ -2190,9 +2192,13 @@ export function OrderDetails({
 																		</button>
 																	</td>
 																</>
-															) : (
-																""
-															)}
+															) : item?.assembly_logs?.length ? (
+																<td>
+																	<button className="table-icon fill" onClick={() => setItemAssemblyLogs(item.assembly_logs)}>
+																		<MdOutlineHistory />
+																	</button>
+																</td>
+															) : null}
 														</tr>
 													)
 												})}
@@ -2536,6 +2542,12 @@ export function OrderDetails({
 			) : (
 				""
 			)}
+			{itemAssemblyLogs ? (
+				<ItemAssemblyLogs
+					onClose={() => setItemAssemblyLogs(false)}
+					popupDetails={itemAssemblyLogs}
+				/>
+			) : null}
 			{popupDiscount ? (
 				<DiscountPopup
 					onSave={() => setPopupDiscount(false)}
@@ -3350,6 +3362,59 @@ function CheckingValues({ onSave, popupDetails, users, items }) {
 								Cancel
 							</button>
 						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	)
+}
+function ItemAssemblyLogs({ onClose, popupDetails }) {
+	return (
+		<div className="overlay" style={{ zIndex: 999999999 }}>
+			<div className="modal" style={{ height: "fit-content", width: "500px" }}>
+				<h1>Item Assembly Logs</h1>
+				<div className="content">
+					<div style={{ overflowY: "scroll", width: "100%" }}>
+						<div className="flex" style={{ flexDirection: "column", width: "100%" }}>
+							<table className="user-table">
+								<thead>
+									<tr>
+										<th>
+											<div className="t-head-element">Status</div>
+										</th>
+										<th>
+											<div className="t-head-element">Updated At</div>
+										</th>
+									</tr>
+								</thead>
+								<tbody className="tbody">
+									{popupDetails?.length
+										? popupDetails?.toSorted((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())?.map((item) => {
+											const date = new Date(item.timestamp)
+												.toLocaleString("en-IN", {
+													day: "2-digit",
+													month: "2-digit",
+													year: "numeric",
+													hour: "2-digit",
+													minute: "2-digit",
+													hour12: true
+												})
+												
+											return (
+												<tr key={item?._id}>
+													<td>{ITEM_STATUS_LABELS[item.status] || "-"}</td>
+													<td>{date}</td>
+												</tr>
+										  	)
+										})
+										: null}
+								</tbody>
+							</table>
+						</div>
+
+						<button type="button" style={{ marginRight: "10px" }} className="submit" onClick={onClose}>
+							Close
+						</button>
 					</div>
 				</div>
 			</div>

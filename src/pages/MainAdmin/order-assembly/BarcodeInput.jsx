@@ -68,3 +68,29 @@ export default function BarcodeInput({ onScan }) {
 		</div>
 	)
 }
+
+window.SIMULATE_BARCODE = function(code, {
+  charDelay = 5,   // ms between characters (scanner-like)
+  enterDelay = 5,  // ms before Enter
+} = {}) {
+  let t = 0
+
+  function fire(key) {
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key,
+        code: key === "Enter" ? "Enter" : `Key${key.toUpperCase()}`,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+      })
+    )
+  }
+
+  for (const ch of code) {
+    setTimeout(() => fire(ch), t)
+    t += charDelay
+  }
+
+  setTimeout(() => fire("Enter"), t + enterDelay)
+}

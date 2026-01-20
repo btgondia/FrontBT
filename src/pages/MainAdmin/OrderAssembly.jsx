@@ -11,6 +11,13 @@ import BarcodeInput from "./order-assembly/BarcodeInput"
 import DeviceTesting from "./order-assembly/DeviceTesting"
 import { Billing } from "../../Apis/functions"
 
+const pluralize = (word, count) =>
+	count === 1 ? word : word + (["s", "x"].includes(word.toLowerCase().at(-1)) ? "es" : "s")
+
+const ACTION_TRIGGER_SOURCE = {
+	BARCODE: "barcode",
+	BUTTON: "button"
+}
 const ORDER_ASSEMBLY_SS_KEY = "orderAssemblySelectedOrders"
 const ASSEMBLY_DEVICE_COUNT = 20
 const DEVICE_MESSAGE = {
@@ -24,15 +31,54 @@ const DEVICE_MESSAGE = {
 		return B === 0 ? String(P) : `${B}x${P}`
 	}
 }
+const VOICE_MESSAGE = {
+	UNTICK: "UNTICKED",
+	ZERO: "ZERO",
+	NOT_FOUND: "ERROR",
+	formatMessage: function (b, p) {
+		const B = Number.isFinite(+b) ? +b : 0
+		const P = Number.isFinite(+p) ? +p : 0
+		return [
+			[B, pluralize("BOX", B)],
+			[P, pluralize("PIECE", P)]
+		]
+			.filter(([v]) => v > 0)
+			.map((i) => i.join(" "))
+			.join(", ")
+	}
+}
 const ITEM_STATUS = {
 	IN_PROCESSING: 0,
 	COMPLETE: 1,
 	HOLD: 2,
 	CANCEL: 3
 }
+export const ITEM_STATUS_LABELS = {
+	[ITEM_STATUS.IN_PROCESSING]: "In Processing",
+	[ITEM_STATUS.COMPLETE]: "Complete",
+	[ITEM_STATUS.HOLD]: "On Hold",
+	[ITEM_STATUS.CANCEL]: "Cancelled"
+}
 const ASSEMBLY_MODES = {
 	NORMAL: "normal",
 	DEVICE: "device"
+}
+
+const synth = window.speechSynthesis
+let voice = null
+
+function initVoice() {
+	const voices = synth.getVoices()
+	voice = voices.find((v) => v.lang === "en-IN") || voices[0]
+}
+
+function speakFast(text) {
+	synth.cancel()
+	const u = new SpeechSynthesisUtterance(text)
+	u.voice = voice
+	u.rate = 1
+	u.pitch = 1
+	synth.speak(u)
 }
 
 /* ----------------- helpers ----------------- */
@@ -246,9 +292,12 @@ const OrderAssembly = () => {
 	const [buffer, setBuffer] = useState([])
 	const [itemStatus, setItemStatus] = useState({})
 
+	console.log({ isMobileAssembly, isMobile })
 	useEffect(() => {
 		if (typeof window === "undefined") return
 		const mql = window.matchMedia("(max-width: 768px)")
+
+		initVoice()
 
 		const handleChange = (e) => {
 			setIsMobile(e.matches)
@@ -610,6 +659,29 @@ const OrderAssembly = () => {
 	// increments on every action button click (used to trigger device updates)
 	const [deviceTriggerCounter, setDeviceTriggerCounter] = useState(0)
 
+	const updateActionLog = async (item_uuid, status) => {
+		try {
+			const orderIds = orders
+				.filter(
+					(order) => order?.order_uuid && order.item_details?.find((i) => i.item_uuid === selectedRowMeta.key)
+				)
+				.map((order) => order.order_uuid)
+
+			console.log({ orderIds })
+			if (!orderIds?.length) return
+
+			await axios.patch("/orders/item-assembly-log", {
+				orderIds,
+				item_uuid,
+				status,
+				timestamp: new Date().toJSON(),
+				user_uuid: localStorage.getItem("user_uuid") || "UNKNOWN_USER"
+			})
+		} catch (error) {
+			console.error("Failed to update action log:", error)
+		}
+	}
+
 	// boolean: all items in all orders for that counter are completed (1) or cancelled (3)
 	// excluding current item, of course!
 	const getCounterDoneStatus = (counterId, currItemId) => {
@@ -618,6 +690,7 @@ const OrderAssembly = () => {
 			const order = orders.find((o) =>
 				[o.invoice_number.split("-")[1], o.order_uuid].includes(i.number.toString())
 			)
+
 			return order?.item_details?.some(
 				(i) =>
 					(i.status !== ITEM_STATUS.COMPLETE && i.status !== ITEM_STATUS.CANCEL) || i.item_uuid === currItemId
@@ -638,17 +711,17 @@ const OrderAssembly = () => {
 				})
 				if (data) {
 					setDeviceCallStatus((prev) =>
-						prev?.retrying?.includes(id)
-							? { ...prev, retrying: (prev?.retrying || [])?.filter((i) => i !== id) }
-							: prev
+						prev?.retrying?.includes(id) ?
+							{ ...prev, retrying: (prev?.retrying || [])?.filter((i) => i !== id) }
+						:	prev
 					)
 				}
 			} catch (err) {
 				if (signal?.aborted) {
 					setDeviceCallStatus((prev) =>
-						prev?.retrying?.includes(id)
-							? { ...prev, retrying: (prev?.retrying || [])?.filter((i) => i !== id) }
-							: prev
+						prev?.retrying?.includes(id) ?
+							{ ...prev, retrying: (prev?.retrying || [])?.filter((i) => i !== id) }
+						:	prev
 					)
 					return
 				}
@@ -711,6 +784,8 @@ const OrderAssembly = () => {
 		setApiLoading(true)
 		try {
 			setDeviceCallStatus({})
+			if (pendingActionRef.current?.voiceMessage) speakFast(pendingActionRef.current?.voiceMessage)
+
 			const result = await Promise.all(uniqueCountersArr.map((c, idx) => makeCounterCalls(c, idx, controller)))
 			const doneCounterIdsLocal = result?.reduce((obj, i) => ({ ...obj, ...i }), {})
 			if (Object.values(doneCounterIdsLocal)?.[0])
@@ -736,7 +811,7 @@ const OrderAssembly = () => {
 	// Queue an action for the currently selected summary row across all visible orders
 	const queueActionForSelectedItem = (newStatus) => {
 		if (!selectedRowMeta?.key && !selectedRowMeta?.name) {
-			alert("Select an item first.")
+			// alert("Select an item first.")
 			return
 		}
 
@@ -903,9 +978,8 @@ const OrderAssembly = () => {
 					if (!upd) return o
 					return {
 						...o,
-						item_details: Array.isArray(upd.item_details)
-							? upd.item_details.map((x) => ({ ...x }))
-							: o.item_details,
+						item_details:
+							Array.isArray(upd.item_details) ? upd.item_details.map((x) => ({ ...x })) : o.item_details,
 						status: Array.isArray(upd.status) ? upd.status.map((s) => ({ ...s })) : o.status,
 						order_grandtotal: upd.order_grandtotal ?? o.order_grandtotal ?? o?.order_grandtotal
 					}
@@ -928,16 +1002,28 @@ const OrderAssembly = () => {
 	const getMessageAndStatus = (key, expectedStatus) => {
 		const currentStatus = itemStatus?.[key] || ITEM_STATUS.IN_PROCESSING
 		const nextStatus = currentStatus === expectedStatus ? ITEM_STATUS.IN_PROCESSING : expectedStatus
-		let message
+		let deviceMessage
+		let voiceMessage
 
-		if (!key) message = DEVICE_MESSAGE.NOT_FOUND
+		if (!key) {
+			deviceMessage = DEVICE_MESSAGE.NOT_FOUND
+			voiceMessage = VOICE_MESSAGE.NOT_FOUND
+		} else if (nextStatus === ITEM_STATUS.IN_PROCESSING && currentStatus === ITEM_STATUS.COMPLETE) {
+			deviceMessage = DEVICE_MESSAGE.UNTICK
+			voiceMessage = VOICE_MESSAGE.UNTICK
+		} else if (nextStatus === ITEM_STATUS.CANCEL) {
+			deviceMessage = DEVICE_MESSAGE.CANCEL
+		} else {
+			const itemSummary = grouped
+				.find((c) => c.category === catIdx.get(itemsIdx.get(key).category_uuid)?.title)
+				?.rows?.find((r) => r.key === key)
 
-		if (nextStatus === ITEM_STATUS.CANCEL) message = DEVICE_MESSAGE.CANCEL
+			if (itemSummary?.totalB > 0 || itemSummary?.totalP > 0)
+				voiceMessage = VOICE_MESSAGE.formatMessage(itemSummary?.totalB, itemSummary?.totalP)
+			else voiceMessage = VOICE_MESSAGE.ZERO
+		}
 
-		if (nextStatus === ITEM_STATUS.IN_PROCESSING && currentStatus === ITEM_STATUS.COMPLETE)
-			message = DEVICE_MESSAGE.UNTICK
-
-		return { nextStatus, message }
+		return { nextStatus, deviceMessage, voiceMessage }
 	}
 
 	// we run actions only after the correct row is selected
@@ -966,9 +1052,12 @@ const OrderAssembly = () => {
 			for (const r of g.rows) {
 				const k = r.key
 				const st = itemStatus?.[k]
-				if (st === 1) map[k] = "complete" // green
-				else if (st === 2) map[k] = "hold" // yellow
-				else if (st === 3) map[k] = "cancel" // red
+				if (st === 1)
+					map[k] = "complete" // green
+				else if (st === 2)
+					map[k] = "hold" // yellow
+				else if (st === 3)
+					map[k] = "cancel" // red
 				else map[k] = "none" // normal
 			}
 		}
@@ -976,11 +1065,15 @@ const OrderAssembly = () => {
 	}, [filtered, itemStatus])
 
 	const applyStatusForKey = (key, expectedStatus) => {
-		const { nextStatus, message } = getMessageAndStatus(key, expectedStatus)
+		const { nextStatus, deviceMessage, voiceMessage } = getMessageAndStatus(key, expectedStatus)
+
+		if (key) updateActionLog(key, nextStatus)
+
 		pendingActionRef.current = {
 			key,
 			status: nextStatus,
-			message: message
+			message: deviceMessage,
+			voiceMessage: voiceMessage
 		}
 		setSelectedKey(key)
 		setPendingActionToken((t) => t + 1)
@@ -1006,7 +1099,7 @@ const OrderAssembly = () => {
 	const handleBarcodeScan = (code) => {
 		const item = itemsMaster.find((i) => i.barcode?.includes?.(code))
 		const itemKey = item?.item_uuid || item?._id || ""
-		toggleCompleteForItemKey(itemKey)
+		toggleCompleteForItemKey(itemKey, ACTION_TRIGGER_SOURCE.BARCODE)
 	}
 
 	/* --------------------------- RENDER: MOBILE --------------------------- */
@@ -1017,7 +1110,7 @@ const OrderAssembly = () => {
 				{/* TOP HEADER (new layout) */}
 				<Loader visible={loading} />
 
-				{deviceCallStatus?.retrying?.length === 0 && deviceCallStatus?.failed?.[0] ? (
+				{deviceCallStatus?.retrying?.length === 0 && deviceCallStatus?.failed?.[0] ?
 					<div className='overlay'>
 						<div
 							className='modal'
@@ -1061,7 +1154,7 @@ const OrderAssembly = () => {
 							</button>
 						</div>
 					</div>
-				) : null}
+				:	null}
 
 				<div
 					className='mobile-assembly-header'
@@ -1116,7 +1209,7 @@ const OrderAssembly = () => {
 								<div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
 									{mode === ASSEMBLY_MODES.DEVICE && (
 										<>
-											{apiLoading || deviceCallStatus?.retrying?.length ? (
+											{apiLoading || deviceCallStatus?.retrying?.length ?
 												<span
 													style={{
 														fontSize: 12,
@@ -1129,16 +1222,16 @@ const OrderAssembly = () => {
 													}}
 												>
 													<span>
-														{apiLoading
-															? "Updating Devices"
-															: `Retrying ${deviceCallStatus?.retrying?.length}`}
+														{apiLoading ?
+															"Updating Devices"
+														:	`Retrying ${deviceCallStatus?.retrying?.length}`}
 													</span>
 													<span
 														className='loader x2-small'
 														style={{ borderColor: "#B45309" }}
 													/>
 												</span>
-											) : null}
+											:	null}
 											{buffer?.length > 0 && (
 												<span
 													style={{
@@ -1191,9 +1284,9 @@ const OrderAssembly = () => {
 											padding: "6px 15px",
 											border: "none",
 											textTransform: "capitalize",
-											...(mode === val
-												? { background: "#10B981", color: "#fff" }
-												: { background: "#dddddd" })
+											...(mode === val ?
+												{ background: "#10B981", color: "#fff" }
+											:	{ background: "#dddddd" })
 										}}
 										onClick={() => setMode(val)}
 									>
@@ -1269,7 +1362,8 @@ const OrderAssembly = () => {
 								borderRadius: 8,
 								border: "1px solid #d1d5db",
 								padding: "0 10px",
-								fontSize: 13
+								fontSize: 13,
+								minWidth: 0
 							}}
 						/>
 
@@ -1285,7 +1379,7 @@ const OrderAssembly = () => {
 						overflowY: "auto"
 					}}
 				>
-					{mobileTab === "crate" ? (
+					{mobileTab === "crate" ?
 						<section className='panel'>
 							<div className='panel-body'>
 								<div className='crate-list'>
@@ -1317,8 +1411,7 @@ const OrderAssembly = () => {
 								</div>
 							</div>
 						</section>
-					) : (
-						<section className='panel right-pane'>
+					:	<section className='panel right-pane'>
 							<div
 								className='summary'
 								style={{
@@ -1350,8 +1443,10 @@ const OrderAssembly = () => {
 											const statusKey = rowHighlight[row.key]
 
 											let rowBg = "#ffffff"
-											if (statusKey === "complete") rowBg = "#ecfdf3" // light green
-											else if (statusKey === "hold") rowBg = "#FFFBEB" // light yellow
+											if (statusKey === "complete")
+												rowBg = "#ecfdf3" // light green
+											else if (statusKey === "hold")
+												rowBg = "#FFFBEB" // light yellow
 											else if (statusKey === "cancel") rowBg = "#FEE2E2" // light red
 
 											return (
@@ -1486,7 +1581,7 @@ const OrderAssembly = () => {
 								))}
 							</div>
 						</section>
-					)}
+					}
 				</div>
 			</div>
 		)
@@ -1655,8 +1750,10 @@ const OrderAssembly = () => {
 										const sr = ++globalIndex
 
 										let rowBg = "#ffffff"
-										if (statusKey === "complete") rowBg = "#ecfdf3" // light green
-										else if (statusKey === "hold") rowBg = "#FFFBEB" // light yellow
+										if (statusKey === "complete")
+											rowBg = "#ecfdf3" // light green
+										else if (statusKey === "hold")
+											rowBg = "#FFFBEB" // light yellow
 										else if (statusKey === "cancel") rowBg = "#FEE2E2" // light red
 
 										return (
