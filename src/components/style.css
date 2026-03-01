@@ -3225,3 +3225,15 @@ button.counter-save-btn {
 	color: rgb(91, 91, 91);
 	font-size: 12px;
 }
+
+.assembly-icon-button {
+	display: flex;
+	border-radius: 4;
+	border: 1px solid gray;
+	padding: 1px;
+}
+
+.assembly-icon-button.enabled {
+	background: #10b981;
+	color: #fff;
+}

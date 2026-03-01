@@ -49,19 +49,8 @@ export default function BarcodeInput({ onScan }) {
 	return (
 		<div style={{ display: "flex", gap: 8 }}>
 			<button
+				className={"assembly-icon-button " + (isScannerOn ? "enabled" : "")}
 				onClick={() => setIsScannerOn((i) => !i)}
-				style={{
-					display: "flex",
-					borderRadius: 4,
-					border: "1px solid gray",
-					padding: "1px",
-					...(isScannerOn
-						? {
-								background: "#10b981",
-								color: "#fff"
-						  }
-						: {})
-				}}
 			>
 				<PiBarcodeBold size={22} />
 			</button>

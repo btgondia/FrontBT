@@ -11,262 +11,48 @@ import BarcodeInput from "./order-assembly/BarcodeInput"
 import DeviceTesting from "./order-assembly/DeviceTesting"
 import { Billing } from "../../Apis/functions"
 
-const pluralize = (word, count) =>
-	count === 1 ? word : word + (["s", "x"].includes(word.toLowerCase().at(-1)) ? "es" : "s")
+import {
+	ACTION_TRIGGER_SOURCE,
+	ORDER_ASSEMBLY_SS_KEY,
+	ASSEMBLY_DEVICE_COUNT,
+	DEVICE_MESSAGE,
+	VOICE_MESSAGE,
+	ITEM_STATUS,
+	ITEM_STATUS_LABELS,
+	ASSEMBLY_MODES
+} from "./order-assembly/constants"
 
-const ACTION_TRIGGER_SOURCE = {
-	BARCODE: "barcode",
-	BUTTON: "button"
-}
-const ORDER_ASSEMBLY_SS_KEY = "orderAssemblySelectedOrders"
-const ASSEMBLY_DEVICE_COUNT = 20
-const DEVICE_MESSAGE = {
-	DONE: "DONE",
-	CANCEL: "XXXX",
-	UNTICK: "UT",
-	NOT_FOUND: "NF",
-	formatMessage: function ({ b = 0, p = 0 } = {}) {
-		const B = Number.isFinite(+b) ? +b : 0
-		const P = Number.isFinite(+p) ? +p : 0
-		return B === 0 ? String(P) : `${B}x${P}`
-	}
-}
-const VOICE_MESSAGE = {
-	UNTICK: "UNTICKED",
-	ZERO: "ZERO",
-	NOT_FOUND: "ERROR",
-	formatMessage: function (b, p) {
-		const B = Number.isFinite(+b) ? +b : 0
-		const P = Number.isFinite(+p) ? +p : 0
-		return [
-			[B, pluralize("BOX", B)],
-			[P, pluralize("PIECE", P)]
-		]
-			.filter(([v]) => v > 0)
-			.map((i) => i.join(" "))
-			.join(", ")
-	}
-}
-const ITEM_STATUS = {
-	IN_PROCESSING: 0,
-	COMPLETE: 1,
-	HOLD: 2,
-	CANCEL: 3
-}
-export const ITEM_STATUS_LABELS = {
-	[ITEM_STATUS.IN_PROCESSING]: "In Processing",
-	[ITEM_STATUS.COMPLETE]: "Complete",
-	[ITEM_STATUS.HOLD]: "On Hold",
-	[ITEM_STATUS.CANCEL]: "Cancelled"
-}
-const ASSEMBLY_MODES = {
-	NORMAL: "normal",
-	DEVICE: "device"
-}
-
-const synth = window.speechSynthesis
-let voice = null
-
-function initVoice() {
-	const voices = synth.getVoices()
-	voice = voices.find((v) => v.lang === "en-IN") || voices[0]
-}
-
-function speakFast(text) {
-	synth.cancel()
-	const u = new SpeechSynthesisUtterance(text)
-	u.voice = voice
-	u.rate = 1
-	u.pitch = 1
-	synth.speak(u)
-}
-
-/* ----------------- helpers ----------------- */
-const norm = (s) => String(s ?? "").trim()
-const nnum = (v, d = 0) => (isNaN(+v) ? d : +v)
-const lineItemId = (ln) => String(ln?.item_uuid_v2 || ln?.item_uuid || ln?.item_code || ln?.ITEM_CODE || "")
-
-/* Robust total getter (prevents UI zeroing) */
-const getOrderGrand = (o) => {
-	const candidates = [o?.order_grandtotal, o?.grand_total, o?.order_grand_total, o?.grandTotal, o?.total_amount]
-	for (const v of candidates) {
-		const n = +v
-		if (Number.isFinite(n) && n > 0) return n
-	}
-	return 0
-}
-
-const sumOrdersTotal = (orders = []) => orders.reduce((acc, o) => acc + getOrderGrand(o), 0)
-
-const buildItemsIndex = (items = []) => {
-	const idx = new Map()
-	for (let index = 0; index < items.length; index++) {
-		const it = items[index]
-		const key = it?.item_uuid || it?._id
-		if (!key) continue
-		idx.set(String(key), {
-			name: norm(it.item_title) || norm(it.pronounce) || norm(it.name) || norm(it.title),
-			mrp: nnum(it.mrp ?? it.MRP ?? it.price_mrp ?? it.Price_MRP),
-			category_uuid: norm(it.category_uuid || it.cat_uuid || ""),
-			// pcs per box (conversion)
-			conversion: nnum(
-				it.conversion ?? it.CONVERSION ?? it.Conv ?? it.conv ?? it.pcs_in_box ?? it.pieces_in_box,
-				1
-			)
-		})
-	}
-	return idx
-}
-
-const buildCategoryIndex = (cats = []) => {
-	const idx = new Map()
-	for (const c of cats) {
-		const uuid = norm(c.category_uuid || c.uuid || c._id || c.IDENTIFIER || c.id)
-		if (!uuid) continue
-		idx.set(uuid, {
-			title: norm(c.category_title || c.title || c.name || "Uncategorized"),
-			sort_order: typeof c.sort_order === "number" ? c.sort_order : nnum(c.sort_order, 9999)
-		})
-	}
-	return idx
-}
-
-const getName = (ln, itemsIdx) => {
-	const fromLine = ln.item_title || ln.item_name || ln.title || ln.name || ln.Item || ln.item
-	if (fromLine) return norm(fromLine)
-	const byUuid = itemsIdx.get(lineItemId(ln))
-	return byUuid?.name || ""
-}
-const getMRP = (ln, itemsIdx) => {
-	const fromLine = ln.mrp ?? ln.MRP ?? ln.price_mrp ?? ln.Price_MRP
-	if (!isNaN(+fromLine)) return +fromLine
-	const byUuid = itemsIdx.get(lineItemId(ln))
-	return byUuid?.mrp || 0
-}
-const getConversion = (ln, itemsIdx) => {
-	const byUuid = itemsIdx.get(lineItemId(ln))
-	return byUuid?.conversion ?? null
-}
-const getCategoryMeta = (ln, itemsIdx, catIdx) => {
-	const fromLine = norm(ln.category_uuid || ln.cat_uuid || "")
-	if (fromLine && catIdx.has(fromLine)) return catIdx.get(fromLine)
-	const fromItem = itemsIdx.get(lineItemId(ln))?.category_uuid
-	if (fromItem && catIdx.has(fromItem)) return catIdx.get(fromItem)
-	return { title: "Uncategorized", sort_order: 999999 }
-}
-
-/* -------- compute grouped summary (Item Summary pane) -------- */
-function computeItemSummary(orders = [], itemsIdx, catIdx) {
-	const catMap = new Map()
-	for (const o of orders) {
-		const lines = Array.isArray(o?.item_details) ? o.item_details : []
-		const orderKey = o?.order_uuid || o?.invoice_number || Math.random().toString(36).slice(2)
-		for (const ln of lines) {
-			const s = +ln?.status
-			if (Object.values(ITEM_STATUS).slice(1).includes(s)) continue
-
-			const itemKey = String(lineItemId(ln) || getName(ln, itemsIdx)).trim()
-			if (!itemKey) continue
-
-			const name = getName(ln, itemsIdx)
-			const mrp = getMRP(ln, itemsIdx)
-			const conv = getConversion(ln, itemsIdx)
-			const displayName = name
-
-			const catMeta = getCategoryMeta(ln, itemsIdx, catIdx)
-			const catTitle = catMeta.title
-
-			if (!catMap.has(catTitle)) {
-				catMap.set(catTitle, {
-					sort_order: catMeta.sort_order ?? 9999,
-					rows: new Map()
-				})
-			}
-			const bucket = catMap.get(catTitle).rows
-
-			const prev = bucket.get(itemKey) || {
-				key: itemKey,
-				name: displayName,
-				mrp,
-				totalB: 0,
-				totalP: 0,
-				conversion: conv ?? null,
-				orders: new Set()
-			}
-			prev.totalB += isNaN(+ln.b) ? 0 : +ln.b
-			prev.totalP += isNaN(+ln.p) ? 0 : +ln.p
-			prev.orders.add(orderKey)
-			if (!prev.conversion && conv) prev.conversion = conv
-			if (!prev.name && displayName) prev.name = displayName
-			if (!prev.mrp && mrp) prev.mrp = mrp
-
-			bucket.set(itemKey, prev)
-		}
-	}
-
-	const out = []
-	for (const [category, { sort_order, rows }] of catMap.entries()) {
-		const arr = Array.from(rows.values()).map((r) => {
-			let totalB = nnum(r.totalB, 0)
-			let totalP = nnum(r.totalP, 0)
-			const conv = nnum(r.conversion, 0)
-
-			// 🔁 convert extra pieces into boxes
-			if (conv > 0) {
-				const extraBoxes = Math.floor(totalP / conv)
-				totalB += extraBoxes
-				totalP = totalP % conv
-			}
-
-			return {
-				...r,
-				totalB,
-				totalP,
-				orderCount: r.orders.size
-			}
-		})
-		arr.sort((a, b) => a.name.localeCompare(b.name)) // items A→Z within category
-		out.push({ category, sort_order, rows: arr })
-	}
-	out.sort((a, b) => {
-		if (a.category === "Uncategorized") return 1
-		if (b.category === "Uncategorized") return -1
-		if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order
-		return a.category.localeCompare(b.category)
-	})
-	return out
-}
-
-const loadFullOrdersFromSession = () => {
-	try {
-		const raw = sessionStorage.getItem(ORDER_ASSEMBLY_SS_KEY) || "[]"
-		const arr = JSON.parse(raw)
-		return Array.isArray(arr) ? arr : []
-	} catch {
-		return []
-	}
-}
-const writeFullOrdersToSession = (merged) => {
-	try {
-		sessionStorage.setItem(ORDER_ASSEMBLY_SS_KEY, JSON.stringify(merged))
-	} catch {
-		/* ignore */
-	}
-}
-
-const allDoneOrCancelled = (item_details) =>
-	Array.isArray(item_details) &&
-	item_details.length > 0 &&
-	item_details.every((ln) => {
-		const s = +ln?.status
-		return s === 1 || s === 3
-	})
+import {
+	initVoice,
+	announce,
+	norm,
+	nnum,
+	lineItemId,
+	pluralize,
+	getOrderGrand,
+	sumOrdersTotal,
+	buildItemsIndex,
+	buildCategoryIndex,
+	getName,
+	getMRP,
+	getConversion,
+	getCategoryMeta,
+	computeItemSummary,
+	loadFullOrdersFromSession,
+	writeFullOrdersToSession,
+	allDoneOrCancelled
+} from "./order-assembly/helpers"
+import { IoVolumeHigh, IoVolumeMuteOutline } from "react-icons/io5"
 
 /* ------------------------------- page ------------------------------- */
 const OrderAssembly = () => {
 	// force mobile layout on /users/processing route (for testing on PC)
 	const isMobileAssembly = window.location.pathname.includes("/users/processing")
 
+	// we run actions only after the correct row is selected
+	const pendingActionRef = useRef(null)
+	const originalGrandTotalsRef = useRef(new Map())
+	
 	const navigate = useNavigate()
 	const location = useLocation()
 
@@ -292,7 +78,15 @@ const OrderAssembly = () => {
 	const [buffer, setBuffer] = useState([])
 	const [itemStatus, setItemStatus] = useState({})
 
-	console.log({ isMobileAssembly, isMobile })
+	const [pendingActionToken, setPendingActionToken] = useState(0)
+	const [loading, setLoading] = useState(false)
+
+	const [deviceBases, setDeviceBases] = useState(Array.from({ length: ASSEMBLY_DEVICE_COUNT }, () => ""))
+	
+	// increments on every action button click (used to trigger device updates)
+	const [deviceTriggerCounter, setDeviceTriggerCounter] = useState(0)
+	const [isSoundOn, setIsSoundOn] = useState(false)
+
 	useEffect(() => {
 		if (typeof window === "undefined") return
 		const mql = window.matchMedia("(max-width: 768px)")
@@ -324,7 +118,6 @@ const OrderAssembly = () => {
 	}, [])
 
 	// Preserve original grand totals to defend against accidental zeroing
-	const originalGrandTotalsRef = useRef(new Map())
 	useEffect(() => {
 		;(orders || []).forEach((o) => {
 			const id = o?.order_uuid || o?.invoice_number
@@ -354,7 +147,6 @@ const OrderAssembly = () => {
 	}, [orders]) // safe due to 'changed' guard
 
 	// Device bases (1..DEVICE_COUNT)
-	const [deviceBases, setDeviceBases] = useState(Array.from({ length: ASSEMBLY_DEVICE_COUNT }, () => ""))
 	useEffect(() => {
 		;(async () => {
 			try {
@@ -468,6 +260,7 @@ const OrderAssembly = () => {
 	}, [location.state])
 
 	const itemsIdx = useMemo(() => buildItemsIndex(itemsMaster || []), [itemsMaster])
+
 	const catIdx = useMemo(() => buildCategoryIndex(categoriesMaster || []), [categoriesMaster])
 
 	const grouped = useMemo(() => computeItemSummary(orders, itemsIdx, catIdx), [orders, itemsIdx, catIdx])
@@ -554,9 +347,9 @@ const OrderAssembly = () => {
 	}, [filtered])
 
 	const [selectedKey, setSelectedKey] = useState(null)
-	useEffect(() => {
-		setSelectedKey((prev) => (prev && flattenedKeys.includes(prev) ? prev : flattenedKeys[0] || null))
-	}, [flattenedKeys])
+	// useEffect(() => {
+	// 	setSelectedKey((prev) => (prev && flattenedKeys.includes(prev) ? prev : flattenedKeys[0] || null))
+	// }, [flattenedKeys])
 
 	const selectedRowMeta = useMemo(() => {
 		for (const g of filtered) {
@@ -655,9 +448,6 @@ const OrderAssembly = () => {
 
 		return result
 	}, [orders, itemsIdx, selectedRowMeta, selectedConversion])
-
-	// increments on every action button click (used to trigger device updates)
-	const [deviceTriggerCounter, setDeviceTriggerCounter] = useState(0)
 
 	const updateActionLog = async (item_uuid, status) => {
 		try {
@@ -784,8 +574,6 @@ const OrderAssembly = () => {
 		setApiLoading(true)
 		try {
 			setDeviceCallStatus({})
-			if (pendingActionRef.current?.voiceMessage) speakFast(pendingActionRef.current?.voiceMessage)
-
 			const result = await Promise.all(uniqueCountersArr.map((c, idx) => makeCounterCalls(c, idx, controller)))
 			const doneCounterIdsLocal = result?.reduce((obj, i) => ({ ...obj, ...i }), {})
 			if (Object.values(doneCounterIdsLocal)?.[0])
@@ -1013,7 +801,7 @@ const OrderAssembly = () => {
 			voiceMessage = VOICE_MESSAGE.UNTICK
 		} else if (nextStatus === ITEM_STATUS.CANCEL) {
 			deviceMessage = DEVICE_MESSAGE.CANCEL
-		} else {
+		} else if (nextStatus === ITEM_STATUS.COMPLETE) {
 			const itemSummary = grouped
 				.find((c) => c.category === catIdx.get(itemsIdx.get(key).category_uuid)?.title)
 				?.rows?.find((r) => r.key === key)
@@ -1025,11 +813,6 @@ const OrderAssembly = () => {
 
 		return { nextStatus, deviceMessage, voiceMessage }
 	}
-
-	// we run actions only after the correct row is selected
-	const pendingActionRef = useRef(null)
-	const [pendingActionToken, setPendingActionToken] = useState(0)
-	const [loading, setLoading] = useState(false)
 
 	// SAVE helper: just call the hook's save (buffer already knows changes)
 	const handleAssemblySave = useCallback(() => {
@@ -1073,8 +856,9 @@ const OrderAssembly = () => {
 			key,
 			status: nextStatus,
 			message: deviceMessage,
-			voiceMessage: voiceMessage
 		}
+
+		if (voiceMessage && isSoundOn) announce(voiceMessage)
 		setSelectedKey(key)
 		setPendingActionToken((t) => t + 1)
 	}
@@ -1093,7 +877,6 @@ const OrderAssembly = () => {
 	// CANCEL toggle
 	const cancelItemByKey = (key) => {
 		applyStatusForKey(key, ITEM_STATUS.CANCEL)
-		if (next) setDeviceTriggerCounter((c) => c + 1)
 	}
 
 	const handleBarcodeScan = (code) => {
@@ -1104,6 +887,7 @@ const OrderAssembly = () => {
 
 	/* --------------------------- RENDER: MOBILE --------------------------- */
 	if (isMobile || isMobileAssembly) {
+		const headerExtraWidth = mode === ASSEMBLY_MODES.DEVICE ? "320px" : "180px"
 		return (
 			<div className='right-side mobile-assembly relative'>
 				{/* Combined header with tabs + SAVE */}
@@ -1176,8 +960,8 @@ const OrderAssembly = () => {
 								display: "flex",
 								padding: "10px 12px",
 								gap: "20px",
-								width: "calc(100vw + 320px)",
-								maxWidth: "calc(500px + 320px)"
+								width: `calc(100vw + ${headerExtraWidth})`,
+								maxWidth: `calc(500px + ${headerExtraWidth})`
 							}}
 						>
 							<div
@@ -1310,7 +1094,7 @@ const OrderAssembly = () => {
 						<div
 							style={{
 								display: "flex",
-								gap: 4,
+								gap: 0,
 								background: "#e5e7eb",
 								borderRadius: 999,
 								padding: 2
@@ -1320,11 +1104,10 @@ const OrderAssembly = () => {
 								type='button'
 								onClick={() => setMobileTab("crate")}
 								style={{
-									padding: "6px 12px",
+									padding: "6px 10px",
 									fontSize: 12,
 									fontWeight: 600,
 									border: "none",
-									minWidth: 80,
 									background: mobileTab === "crate" ? "#111827" : "transparent",
 									color: mobileTab === "crate" ? "#f9fafb" : "#4b5563",
 									borderRadius: 999
@@ -1336,11 +1119,10 @@ const OrderAssembly = () => {
 								type='button'
 								onClick={() => setMobileTab("items")}
 								style={{
-									padding: "6px 12px",
+									padding: "6px 10px",
 									fontSize: 12,
 									fontWeight: 600,
 									border: "none",
-									minWidth: 80,
 									background: mobileTab === "items" ? "#111827" : "transparent",
 									color: mobileTab === "items" ? "#f9fafb" : "#4b5563",
 									borderRadius: 999
@@ -1368,6 +1150,13 @@ const OrderAssembly = () => {
 						/>
 
 						<BarcodeInput onScan={handleBarcodeScan} />
+						<button
+							className={"assembly-icon-button " + (isSoundOn ? "enabled" : "")}
+							onClick={() => setIsSoundOn(i => !i)}
+						>
+							{isSoundOn ? <IoVolumeHigh size={22} /> : <IoVolumeMuteOutline size={22} />}
+						</button>
+
 					</div>
 				</div>
 
@@ -1488,7 +1277,6 @@ const OrderAssembly = () => {
 															flex: 1,
 															minWidth: 0
 														}}
-														onClick={() => setSelectedKey(row.key)}
 													>
 														<div
 															style={{

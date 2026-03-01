@@ -45,12 +45,12 @@ import {
 } from "../utils/helperFunctions"
 import { useLocation } from "react-router-dom"
 import { getInitialOrderValue } from "../utils/constants"
-import { MdCurrencyRupee, MdDownloadDone, MdFileDownloadDone, MdLocalOffer, MdOutlineEdit, MdOutlineEditOff, MdOutlineHistory, MdReplay } from "react-icons/md"
+import { MdCurrencyRupee, MdFileDownloadDone, MdLocalOffer, MdOutlineEdit, MdOutlineEditOff, MdOutlineHistory, MdReplay } from "react-icons/md"
 import { RiPercentFill } from "react-icons/ri";
 import { IoMdCloseCircle } from "react-icons/io";
 
 import "./orderDetails.css"
-import { ITEM_STATUS_LABELS } from "../pages/MainAdmin/OrderAssembly"
+import { ITEM_STATUS_LABELS } from "../pages/MainAdmin/order-assembly/constants"
 
 const default_status = [
 	{ value: 0, label: "Preparing" },

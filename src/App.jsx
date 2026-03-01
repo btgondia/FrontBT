@@ -67,7 +67,6 @@ import StockAdjustmentReport from "./pages/Reports/StockAdjustmentReport"
 import CashRegisterReport from "./pages/Reports/CashRegisterReport"
 import ExpansesPage from "./pages/Master/Expances"
 import StockTrack from "./pages/Reports/StockTrack"
-import PrivacyPolicy from "./PrivacyPolicy"
 import StockAdjustmentMobile from "./users/StockAdjustmentMobile"
 import MainAdmin1 from "./pages/MainAdmin/MainAdmin1"
 import LedgersPage from "./pages/Master/Ledgers"
@@ -82,6 +81,7 @@ import OpeningBalanceReport from "./pages/Reports/OpeningBalanceReport"
 import OpeningBalanceDate from "./pages/others/OpeningBalanceDate"
 import OrderPdf from "./components/prints/OrderPdf"
 import TermsAndConditions from "./TermsAndConditions"
+
 import LedgerClosingBalance from "./pages/Reports/LedgerClosingBalance"
 import CheckAccountingBalance from "./pages/QuikAccess/CheckAccountingBalance"
 import ChequeNumberSearch from "./pages/Reports/ChequeNumberSearch"
@@ -102,16 +102,17 @@ import AssemblyGrouping from "./pages/MainAdmin/AssemblyGrouping";
 
 /* ⭐ NEW: Assembly Devices page */
 import AssemblyDevices from "./pages/MainAdmin/AssemblyDevices"
+import PrivacyPolicy from "./Policy"
 
 export const server = ["https://api.btgondia.com", "https://dev.btgondia.com/api", "http://localhost:9000"][
 	window.location.origin.includes("dev.btgondia")
 	? 1 // ! DONOT CHANGE THIS (for dev server)
 	: window.location.origin.includes("btgondia")
 		? 0 // ! DONOT CHANGE THIS (for prod server)
-		: 2 // * for local env (for local server)
+		: 1 // * for local env (for local server)
 ]
 
-export let Version = 419 // ? increment version count for each deployment rather than each count
+export let Version = 420 // ? increment version count for each deployment rather than each count
 
 function App() {
 	const [userType, setUserType] = useState(sessionStorage.getItem("userType"))
