@@ -50,7 +50,7 @@ import { RiPercentFill } from "react-icons/ri";
 import { IoMdCloseCircle } from "react-icons/io";
 
 import "./orderDetails.css"
-import { ITEM_STATUS_LABELS } from "../pages/MainAdmin/order-assembly/constants"
+import { ITEM_STATUS_COLORS, ITEM_STATUS_LABELS } from "../pages/MainAdmin/order-assembly/constants"
 
 const default_status = [
 	{ value: 0, label: "Preparing" },
@@ -2192,13 +2192,15 @@ export function OrderDetails({
 																		</button>
 																	</td>
 																</>
-															) : item?.assembly_logs?.length ? (
+															) : (
 																<td>
-																	<button className="table-icon fill" onClick={() => setItemAssemblyLogs(item.assembly_logs)}>
-																		<MdOutlineHistory />
-																	</button>
+																	{item?.assembly_logs?.length > 0 && (
+																		<button className="table-icon fill" style={{marginInline:'auto'}} onClick={() => setItemAssemblyLogs(item.assembly_logs)}>
+																			<MdOutlineHistory />
+																		</button>
+																	)}
 																</td>
-															) : null}
+															)}
 														</tr>
 													)
 												})}
@@ -2236,9 +2238,9 @@ export function OrderDetails({
 														<>
 															<td></td>
 															<td></td>
-															<td></td>
-														</> 
-													: ""}
+														</>
+													: null}
+													<td></td>
 												</tr>
 											</tfoot>
 										</table>
@@ -3373,12 +3375,13 @@ function ItemAssemblyLogs({ onClose, popupDetails }) {
 		<div className="overlay" style={{ zIndex: 999999999 }}>
 			<div className="modal" style={{ height: "fit-content", width: "500px" }}>
 				<h1>Item Assembly Logs</h1>
-				<div className="content">
-					<div style={{ overflowY: "scroll", width: "100%" }}>
-						<div className="flex" style={{ flexDirection: "column", width: "100%" }}>
+				<div className="content" style={{overflowY: "scroll", width: "100%", maxHeight: "75vh",paddingTop:0,marginTop:'15px'}}>
+					<div>
+						<div className="flex" style={{ flexDirection: "column" }}>
 							<table className="user-table">
 								<thead>
 									<tr>
+										<th style={{width:'26px'}}>#</th>
 										<th>
 											<div className="t-head-element">Status</div>
 										</th>
@@ -3389,7 +3392,7 @@ function ItemAssemblyLogs({ onClose, popupDetails }) {
 								</thead>
 								<tbody className="tbody">
 									{popupDetails?.length
-										? popupDetails?.toSorted((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())?.map((item) => {
+										? popupDetails?.toSorted((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())?.map((item, i) => {
 											const date = new Date(item.timestamp)
 												.toLocaleString("en-IN", {
 													day: "2-digit",
@@ -3401,7 +3404,8 @@ function ItemAssemblyLogs({ onClose, popupDetails }) {
 												})
 												
 											return (
-												<tr key={item?._id}>
+												<tr key={item?._id} style={{background:ITEM_STATUS_COLORS[item.status].bg,color:"#111!important"}}>
+													<td>{i + 1}.</td>
 													<td>{ITEM_STATUS_LABELS[item.status] || "-"}</td>
 													<td>{date}</td>
 												</tr>

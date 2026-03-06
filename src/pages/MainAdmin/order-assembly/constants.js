@@ -52,6 +52,13 @@ export const ITEM_STATUS_LABELS = {
 	[ITEM_STATUS.CANCEL]: "Cancelled"
 }
 
+export const ITEM_STATUS_COLORS = {
+	[ITEM_STATUS.IN_PROCESSING]: { bg: "#fffff" },
+	[ITEM_STATUS.COMPLETE]: { bg: "#ecfdf3" },
+	[ITEM_STATUS.HOLD]: { bg: "#FFFBEB" },
+	[ITEM_STATUS.CANCEL]: { bg: "#FEE2E2" }
+}
+
 export const ASSEMBLY_MODES = {
 	NORMAL: "normal",
 	DEVICE: "device"
