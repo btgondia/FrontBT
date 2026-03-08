@@ -313,6 +313,10 @@ export const Billing = async ({
             (a) => a.company_uuid === item.company_uuid
           )?.discount || 0
         : 0;
+    let dms_scheme_discount =
+      add_discounts || item.edit
+        ? item?.dms_scheme_discount || 0
+        : 0;
 
     item = {
       ...item,
@@ -365,6 +369,21 @@ export const Billing = async ({
           : (+edit_price || +item?.price || +item.item_price || 0) *
               ((100 - company_discount_percentage) / 100) || 0,
       };
+    }
+
+    if (dms_scheme_discount) {
+      charges_discount?.push({
+        title: "DMS Scheme Discount",
+        value: dms_scheme_discount,
+      })
+      item = {
+        ...item,
+        item_desc_total: item.item_desc_total
+          ? item.item_desc_total *
+              ((100 - dms_scheme_discount) / 100) || 0
+          : (+edit_price || +item?.price || +item.item_price || 0) *
+              ((100 - dms_scheme_discount) / 100) || 0,
+      }
     }
 
     if (salesManDiscounts.value) {

@@ -954,6 +954,7 @@ function NewUserForm({
 			let _data
 			if (popupInfo?.type === "dms") {
 				setdata(popupInfo.data)
+				return
 			} else if (popupInfo?.type === "edit") {
 				_data = await {
 					...popupInfo.data,
@@ -1095,6 +1096,7 @@ function NewUserForm({
 					dms_buyer_id: data.dms_buyer_id,
 					dms_beat_name: data.dms_beat_name,
 					dms_buyer_address: data.dms_buyer_address,
+					apply_dms_discount: data.apply_dms_discount,
 					dms_buyer_name: data.dms_buyer_name
 				}
 			],
@@ -1278,6 +1280,23 @@ function NewUserForm({
 													}
 													maxLength={42}
 												/>
+											</label>
+										</div>
+
+										<div className="row">
+											<label style={{alignItems:'center'}}>
+												<input
+													type="checkbox"
+													checked={Boolean(data?.apply_dms_discount)}
+													style={{ width: 16, height: 16 }}
+													onChange={e =>
+														setdata({
+															...data,
+															apply_dms_discount: e.target.checked
+														})
+													}
+												/>
+												<span>Apply DMS Scheme Discount</span>
 											</label>
 										</div>
 									</div>
