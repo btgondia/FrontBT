@@ -453,11 +453,10 @@ const OrderAssembly = () => {
 		try {
 			const orderIds = orders
 				.filter(
-					(order) => order?.order_uuid && order.item_details?.find((i) => i.item_uuid === selectedRowMeta.key)
+					(order) => order?.order_uuid && order.item_details?.find((i) => i.item_uuid === item_uuid)
 				)
 				.map((order) => order.order_uuid)
 
-			console.log({ orderIds })
 			if (!orderIds?.length) return
 
 			await axios.patch("/orders/item-assembly-log", {

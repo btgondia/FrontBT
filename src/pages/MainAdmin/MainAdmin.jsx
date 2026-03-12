@@ -560,6 +560,7 @@ TOTAL: ${amounts}
 						(!stageList.length || stageList.filter(b => b === getOrderStage(a.status)).length) &&
 						(!+users?.find(_u => _u?.user_uuid === user_uuid)?.hide_pending_payments || !+a?.payment_pending) &&
 						(!searchItems ||
+							a.order_uuid === searchItems ||
 							a.invoice_number?.toString()?.includes(searchItems?.toLocaleLowerCase()) ||
 							a.counter_title?.toLocaleLowerCase()?.includes(searchItems?.toLocaleLowerCase()))
 				)

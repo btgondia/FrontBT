@@ -2195,7 +2195,7 @@ export function OrderDetails({
 															) : (
 																<td>
 																	{item?.assembly_logs?.length > 0 && (
-																		<button className="table-icon fill" style={{marginInline:'auto'}} onClick={() => setItemAssemblyLogs(item.assembly_logs)}>
+																		<button className="table-icon fill" style={{marginInline:'auto'}} onClick={() => setItemAssemblyLogs({assembly_logs:item.assembly_logs,item_title: item.item_title})}>
 																			<MdOutlineHistory />
 																		</button>
 																	)}
@@ -2374,7 +2374,7 @@ export function OrderDetails({
 														}
 													/>
 												)}
-												<span><b>Payment pending</b></span>
+												<span><b>Payment Pending</b></span>
 												{!editOrder && <span>{orderData?.payment_pending ? "Yes" : "No"}</span>}
 											</label>
 											<div>
@@ -3374,13 +3374,14 @@ function ItemAssemblyLogs({ onClose, popupDetails }) {
 	return (
 		<div className="overlay" style={{ zIndex: 999999999 }}>
 			<div className="modal" style={{ height: "fit-content", width: "500px" }}>
-				<h1>Item Assembly Logs</h1>
+				<h1 style={{fontSize:22}}>Assembly Logs</h1>
+				<h2 style={{fontSize:16}}>{popupDetails?.item_title} Assembly Logs</h2>
 				<div className="content" style={{overflowY: "scroll", width: "100%", maxHeight: "75vh",paddingTop:0,marginTop:'15px'}}>
 					<div>
 						<div className="flex" style={{ flexDirection: "column" }}>
 							<table className="user-table">
 								<thead>
-									<tr>
+									<tr style={{cursor:'auto'}}>
 										<th style={{width:'26px'}}>#</th>
 										<th>
 											<div className="t-head-element">Status</div>
@@ -3391,8 +3392,8 @@ function ItemAssemblyLogs({ onClose, popupDetails }) {
 									</tr>
 								</thead>
 								<tbody className="tbody">
-									{popupDetails?.length
-										? popupDetails?.toSorted((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())?.map((item, i) => {
+									{popupDetails?.assembly_logs?.length
+										? popupDetails?.assembly_logs?.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())?.map((item, i) => {
 											const date = new Date(item.timestamp)
 												.toLocaleString("en-IN", {
 													day: "2-digit",
@@ -3404,7 +3405,7 @@ function ItemAssemblyLogs({ onClose, popupDetails }) {
 												})
 												
 											return (
-												<tr key={item?._id} style={{background:ITEM_STATUS_COLORS[item.status].bg,color:"#111!important"}}>
+												<tr key={item?._id} style={{background:ITEM_STATUS_COLORS[item.status].bg,color:"#111!important",cursor:'auto'}}>
 													<td>{i + 1}.</td>
 													<td>{ITEM_STATUS_LABELS[item.status] || "-"}</td>
 													<td>{date}</td>

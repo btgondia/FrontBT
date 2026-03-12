@@ -314,15 +314,30 @@ export const Billing = async ({
           )?.discount || 0
         : 0;
     let dms_scheme_discount =
-      add_discounts || item.edit
-        ? item?.dms_scheme_discount || 0
-        : 0;
+      (add_discounts || item.edit) && !isNaN(item?.dms_scheme_discount)
+        ? item?.dms_scheme_discount
+        : null;
 
     item = {
       ...item,
       qty: +item.conversion * +item.b + +item.p,
     };
     if (price) item = { ...item, item_price: price };
+
+    if (dms_scheme_discount !== null) {
+      charges_discount?.push({
+        title: "DMS Scheme Discount",
+        value: dms_scheme_discount,
+      })
+      item = {
+        ...item,
+        item_desc_total: item.item_desc_total
+          ? item.item_desc_total *
+              ((100 - dms_scheme_discount) / 100) || 0
+          : (+edit_price || +item?.price || +item.item_price || 0) *
+              ((100 - dms_scheme_discount) / 100) || 0,
+      }
+    }
 
     if (special_discount_percentage) {
       charges_discount?.push({
@@ -369,21 +384,6 @@ export const Billing = async ({
           : (+edit_price || +item?.price || +item.item_price || 0) *
               ((100 - company_discount_percentage) / 100) || 0,
       };
-    }
-
-    if (dms_scheme_discount) {
-      charges_discount?.push({
-        title: "DMS Scheme Discount",
-        value: dms_scheme_discount,
-      })
-      item = {
-        ...item,
-        item_desc_total: item.item_desc_total
-          ? item.item_desc_total *
-              ((100 - dms_scheme_discount) / 100) || 0
-          : (+edit_price || +item?.price || +item.item_price || 0) *
-              ((100 - dms_scheme_discount) / 100) || 0,
-      }
     }
 
     if (salesManDiscounts.value) {
