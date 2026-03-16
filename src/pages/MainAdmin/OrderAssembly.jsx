@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import Sidebar from "../../components/Sidebar"
-import Header from "../../components/Header"
 import axios from "axios"
 import "./style.css"
 import { MdClose } from "react-icons/md"
@@ -52,7 +50,7 @@ const OrderAssembly = () => {
 	// we run actions only after the correct row is selected
 	const pendingActionRef = useRef(null)
 	const originalGrandTotalsRef = useRef(new Map())
-	
+
 	const navigate = useNavigate()
 	const location = useLocation()
 
@@ -68,8 +66,6 @@ const OrderAssembly = () => {
 	const [counterIndex, setCounterIndex] = useState(new Map())
 	const [doneCounterIds, setDoneCounterIds] = useState({})
 
-	/* ---------- MOBILE VIEW DETECTION ---------- */
-	const [isMobile, setIsMobile] = useState(false)
 	const [mobileTab, setMobileTab] = useState("items") // "items" | "crate"
 
 	const [apiLoading, setApiLoading] = useState()
@@ -82,40 +78,10 @@ const OrderAssembly = () => {
 	const [loading, setLoading] = useState(false)
 
 	const [deviceBases, setDeviceBases] = useState(Array.from({ length: ASSEMBLY_DEVICE_COUNT }, () => ""))
-	
+
 	// increments on every action button click (used to trigger device updates)
 	const [deviceTriggerCounter, setDeviceTriggerCounter] = useState(0)
 	const [isSoundOn, setIsSoundOn] = useState(false)
-
-	useEffect(() => {
-		if (typeof window === "undefined") return
-		const mql = window.matchMedia("(max-width: 768px)")
-
-		initVoice()
-
-		const handleChange = (e) => {
-			setIsMobile(e.matches)
-		}
-
-		// initial
-		setIsMobile(mql.matches)
-
-		// subscribe
-		if (mql.addEventListener) {
-			mql.addEventListener("change", handleChange)
-		} else {
-			// older browsers
-			mql.addListener(handleChange)
-		}
-
-		return () => {
-			if (mql.removeEventListener) {
-				mql.removeEventListener("change", handleChange)
-			} else {
-				mql.removeListener(handleChange)
-			}
-		}
-	}, [])
 
 	// Preserve original grand totals to defend against accidental zeroing
 	useEffect(() => {
@@ -452,9 +418,7 @@ const OrderAssembly = () => {
 	const updateActionLog = async (item_uuid, status) => {
 		try {
 			const orderIds = orders
-				.filter(
-					(order) => order?.order_uuid && order.item_details?.find((i) => i.item_uuid === item_uuid)
-				)
+				.filter((order) => order?.order_uuid && order.item_details?.find((i) => i.item_uuid === item_uuid))
 				.map((order) => order.order_uuid)
 
 			if (!orderIds?.length) return
@@ -854,7 +818,7 @@ const OrderAssembly = () => {
 		pendingActionRef.current = {
 			key,
 			status: nextStatus,
-			message: deviceMessage,
+			message: deviceMessage
 		}
 
 		if (voiceMessage && isSoundOn) announce(voiceMessage)
@@ -880,554 +844,296 @@ const OrderAssembly = () => {
 
 	const handleBarcodeScan = (code) => {
 		const item = itemsMaster.find((i) => i.barcode?.includes?.(code))
-		const itemKey = item?.item_uuid || item?._id || ""
+		const itemKey = item?.item_uuid
+		if (!itemKey)
+			return alert(`Item Id not found for barcode ${code}` + (item?.item_title ? ` (${item?.item_title})` : ""))
 		toggleCompleteForItemKey(itemKey, ACTION_TRIGGER_SOURCE.BARCODE)
 	}
 
-	/* --------------------------- RENDER: MOBILE --------------------------- */
-	if (isMobile || isMobileAssembly) {
-		const headerExtraWidth = mode === ASSEMBLY_MODES.DEVICE ? "320px" : "180px"
-		return (
-			<div className='right-side mobile-assembly relative'>
-				{/* Combined header with tabs + SAVE */}
-				{/* TOP HEADER (new layout) */}
-				<Loader visible={loading} />
+	const headerExtraWidth = mode === ASSEMBLY_MODES.DEVICE ? "320px" : "180px"
+	return (
+		<div className='right-side mobile-assembly relative'>
+			{/* Combined header with tabs + SAVE */}
+			{/* TOP HEADER (new layout) */}
+			<Loader visible={loading} />
 
-				{deviceCallStatus?.retrying?.length === 0 && deviceCallStatus?.failed?.[0] ?
-					<div className='overlay'>
-						<div
-							className='modal'
-							style={{
-								padding: 15,
-								paddingBottom: 0,
-								width: "480px",
-								maxWidth: "95vw",
-								position: "relative"
-							}}
-						>
-							<h5 style={{ fontSize: 16 }}>Device Call Errors</h5>
-							<span style={{ fontSize: 13 }}>Total {deviceCallStatus.failed.length} devices failed</span>
-							<div style={{ maxHeight: "60vh", overflow: "auto", paddingBottom: 15 }}>
-								<ol style={{ fontSize: 14, marginTop: 8, marginLeft: 30 }}>
-									{deviceCallStatus.failed.map((i) => (
-										<li
-											key={"error-detail:" + i.idx}
-											className='faded-markers'
-											style={{ marginBottom: "8px" }}
-										>
-											<b>
-												{"#"}
-												{i.idx + 1} {uniqueCountersArr[i.idx]?.title} [
-												{i.passedMessage || `${i.qty?.b || 0}:${i.qty?.p || 0}`}]
-											</b>
-											<br />
-											<p style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-												<RiErrorWarningFill color='red' style={{ fontSize: 18 }} />
-												<span style={{ color: "rgb(85, 85, 85)" }}>{i.message}</span>
-											</p>
-										</li>
-									))}
-								</ol>
-							</div>
-							<button
-								style={{ position: "absolute", right: 10, top: 10, display: "flex" }}
-								onClick={() => setDeviceCallStatus({})}
-							>
-								<MdClose />
-							</button>
+			{deviceCallStatus?.retrying?.length === 0 && deviceCallStatus?.failed?.[0] ?
+				<div className='overlay'>
+					<div
+						className='modal'
+						style={{
+							padding: 15,
+							paddingBottom: 0,
+							width: "480px",
+							maxWidth: "95vw",
+							position: "relative"
+						}}
+					>
+						<h5 style={{ fontSize: 16 }}>Device Call Errors</h5>
+						<span style={{ fontSize: 13 }}>Total {deviceCallStatus.failed.length} devices failed</span>
+						<div style={{ maxHeight: "60vh", overflow: "auto", paddingBottom: 15 }}>
+							<ol style={{ fontSize: 14, marginTop: 8, marginLeft: 30 }}>
+								{deviceCallStatus.failed.map((i) => (
+									<li
+										key={"error-detail:" + i.idx}
+										className='faded-markers'
+										style={{ marginBottom: "8px" }}
+									>
+										<b>
+											{"#"}
+											{i.idx + 1} {uniqueCountersArr[i.idx]?.title} [
+											{i.passedMessage || `${i.qty?.b || 0}:${i.qty?.p || 0}`}]
+										</b>
+										<br />
+										<p style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+											<RiErrorWarningFill color='red' style={{ fontSize: 18 }} />
+											<span style={{ color: "rgb(85, 85, 85)" }}>{i.message}</span>
+										</p>
+									</li>
+								))}
+							</ol>
 						</div>
+						<button
+							style={{ position: "absolute", right: 10, top: 10, display: "flex" }}
+							onClick={() => setDeviceCallStatus({})}
+						>
+							<MdClose />
+						</button>
 					</div>
-				:	null}
+				</div>
+			:	null}
 
+			<div
+				className='mobile-assembly-header'
+				style={{
+					borderBottom: "1px solid #e5e7eb",
+					background: "#ffffff"
+				}}
+			>
+				{/* Row 1: Close  ......  (xx pending) SAVE */}
 				<div
-					className='mobile-assembly-header'
 					style={{
-						borderBottom: "1px solid #e5e7eb",
-						background: "#ffffff"
+						width: "100vw",
+						maxWidth: "500px",
+						overflow: "auto"
 					}}
 				>
-					{/* Row 1: Close  ......  (xx pending) SAVE */}
 					<div
 						style={{
-							width: "100vw",
-							maxWidth: "500px",
-							overflow: "auto"
+							display: "flex",
+							padding: "10px 12px",
+							gap: "20px",
+							width: `calc(100vw + ${headerExtraWidth})`,
+							maxWidth: `calc(500px + ${headerExtraWidth})`
 						}}
 					>
 						<div
 							style={{
 								display: "flex",
-								padding: "10px 12px",
-								gap: "20px",
-								width: `calc(100vw + ${headerExtraWidth})`,
-								maxWidth: `calc(500px + ${headerExtraWidth})`
+								alignItems: "center",
+								width: "calc(100vw - 24px)",
+								maxWidth: "calc(500px - 24px)"
 							}}
 						>
-							<div
+							{/* Close on the left */}
+							<button
+								type='button'
+								onClick={() => {
+									if (window.confirm("Changes will get discarded. Continue?"))
+										navigate(window.location.pathname.split("/").slice(0, -1).join("/"))
+								}}
 								style={{
-									display: "flex",
-									alignItems: "center",
-									width: "calc(100vw - 24px)",
-									maxWidth: "calc(500px - 24px)"
+									color: "#DC2626",
+									fontWeight: 600,
+									fontSize: 14,
+									border: "none",
+									background: "transparent"
 								}}
 							>
-								{/* Close on the left */}
-								<button
-									type='button'
-									onClick={() => {
-										if (window.confirm("Changes will get discarded. Continue?"))
-											navigate(window.location.pathname.split("/").slice(0, -1).join("/"))
-									}}
-									style={{
-										color: "#DC2626",
-										fontWeight: 600,
-										fontSize: 14,
-										border: "none",
-										background: "transparent"
-									}}
-								>
-									Close
-								</button>
+								Close
+							</button>
 
-								<div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-									{mode === ASSEMBLY_MODES.DEVICE && (
-										<>
-											{apiLoading || deviceCallStatus?.retrying?.length ?
-												<span
-													style={{
-														fontSize: 12,
-														color: "#B45309",
-														background: "#FEF3C7",
-														padding: "4px 8px",
-														borderRadius: 6,
-														display: "flex",
-														gap: 6
-													}}
-												>
-													<span>
-														{apiLoading ?
-															"Updating Devices"
-														:	`Retrying ${deviceCallStatus?.retrying?.length}`}
-													</span>
-													<span
-														className='loader x2-small'
-														style={{ borderColor: "#B45309" }}
-													/>
-												</span>
-											:	null}
-											{buffer?.length > 0 && (
-												<span
-													style={{
-														fontSize: 14,
-														color: "#B45309",
-														background: "#FEF3C7",
-														padding: "4px 8px",
-														borderRadius: 6
-													}}
-												>
-													{buffer?.length} pending
-												</span>
-											)}
-											<button
-												type='button'
-												onClick={handleAssemblySave}
+							<div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+								{mode === ASSEMBLY_MODES.DEVICE && (
+									<>
+										{apiLoading || deviceCallStatus?.retrying?.length ?
+											<span
 												style={{
-													background: "#10B981",
-													color: "white",
-													padding: "6px 16px",
-													borderRadius: 8,
-													border: "none",
-													fontWeight: 700,
-													fontSize: 15
+													fontSize: 12,
+													color: "#B45309",
+													background: "#FEF3C7",
+													padding: "4px 8px",
+													borderRadius: 6,
+													display: "flex",
+													gap: 6
 												}}
 											>
-												SAVE
-											</button>
-										</>
-									)}
-								</div>
-							</div>
-							{mode === ASSEMBLY_MODES.DEVICE && (
-								<DeviceTesting deviceBases={deviceBases} counters={uniqueCountersArr} />
-							)}
-							<div
-								style={{
-									border: "1px solid #cccccc",
-									borderRadius: "200px",
-									background: "#dddddd",
-									display: "flex",
-									padding: "2px"
-								}}
-							>
-								{Object.entries(ASSEMBLY_MODES).map(([key, val]) => (
-									<button
-										key={key}
-										style={{
-											borderRadius: "200px",
-											padding: "6px 15px",
-											border: "none",
-											textTransform: "capitalize",
-											...(mode === val ?
-												{ background: "#10B981", color: "#fff" }
-											:	{ background: "#dddddd" })
-										}}
-										onClick={() => setMode(val)}
-									>
-										{key.toLowerCase()}
-									</button>
-								))}
-							</div>
-						</div>
-					</div>
-
-					{/* Row 2: [Crate] [Items]  Search */}
-					<div
-						style={{
-							padding: "0 12px 10px",
-							display: "flex",
-							alignItems: "center",
-							gap: 10
-						}}
-					>
-						{/* Tabs */}
-						<div
-							style={{
-								display: "flex",
-								gap: 0,
-								background: "#e5e7eb",
-								borderRadius: 999,
-								padding: 2
-							}}
-						>
-							<button
-								type='button'
-								onClick={() => setMobileTab("crate")}
-								style={{
-									padding: "6px 10px",
-									fontSize: 12,
-									fontWeight: 600,
-									border: "none",
-									background: mobileTab === "crate" ? "#111827" : "transparent",
-									color: mobileTab === "crate" ? "#f9fafb" : "#4b5563",
-									borderRadius: 999
-								}}
-							>
-								Crates
-							</button>
-							<button
-								type='button'
-								onClick={() => setMobileTab("items")}
-								style={{
-									padding: "6px 10px",
-									fontSize: 12,
-									fontWeight: 600,
-									border: "none",
-									background: mobileTab === "items" ? "#111827" : "transparent",
-									color: mobileTab === "items" ? "#f9fafb" : "#4b5563",
-									borderRadius: 999
-								}}
-							>
-								Items
-							</button>
-						</div>
-
-						{/* Search bar (takes remaining ~70%) */}
-						<input
-							type='text'
-							placeholder='Search...'
-							value={search}
-							onChange={(e) => setSearch(e.target.value)}
-							style={{
-								flex: 1,
-								height: 32,
-								borderRadius: 8,
-								border: "1px solid #d1d5db",
-								padding: "0 10px",
-								fontSize: 13,
-								minWidth: 0
-							}}
-						/>
-
-						<BarcodeInput onScan={handleBarcodeScan} />
-						<button
-							className={"assembly-icon-button " + (isSoundOn ? "enabled" : "")}
-							onClick={() => setIsSoundOn(i => !i)}
-						>
-							{isSoundOn ? <IoVolumeHigh size={22} /> : <IoVolumeMuteOutline size={22} />}
-						</button>
-
-					</div>
-				</div>
-
-				{/* Body: either Crate or Item Summary */}
-				<div
-					className='assembly-layout-mobile'
-					style={{
-						height: "calc(100vh - 92px)",
-						overflowY: "auto"
-					}}
-				>
-					{mobileTab === "crate" ?
-						<section className='panel'>
-							<div className='panel-body'>
-								<div className='crate-list'>
-									{uniqueCountersArr.map((c, idx) => {
-										const bp = perCounterCounts.get(c.uuid) || { b: 0, p: 0 }
-										const chips = ordersByCounter.get(c.uuid) || []
-										return (
-											<div key={c.uuid} className='crate-item'>
-												<div className='crate-tube'>
-													<div style={{ overflow: "auto" }}>
-														<div className='crate-text'>
-															{idx + 1}. {c.title}
-														</div>
-														<div className='crate-orders'>
-															{chips.map((o) => (
-																<span key={o.number} className='chip'>
-																	B-{o.number} • ₹{Math.round(o.total)}
-																</span>
-															))}
-														</div>
-													</div>
-													<div className='crate-count'>
-														{bp.b} : {bp.p}
-													</div>
-												</div>
-											</div>
-										)
-									})}
-								</div>
-							</div>
-						</section>
-					:	<section className='panel right-pane'>
-							<div
-								className='summary'
-								style={{
-									// paddingBottom: 64,
-									maxHeight: "calc(100vh - 110px)",
-									overflowY: "auto"
-								}}
-							>
-								{/* Grouped items */}
-								{filtered.map((group) => (
-									<div
-										key={group.category}
-										className='mobile-category-block'
-										style={{ marginBottom: 8 }}
-									>
-										<div
-											className='mobile-category-header'
+												<span>
+													{apiLoading ?
+														"Updating Devices"
+													:	`Retrying ${deviceCallStatus?.retrying?.length}`}
+												</span>
+												<span
+													className='loader x2-small'
+													style={{ borderColor: "#B45309" }}
+												/>
+											</span>
+										:	null}
+										{buffer?.length > 0 && (
+											<span
+												style={{
+													fontSize: 14,
+													color: "#B45309",
+													background: "#FEF3C7",
+													padding: "4px 8px",
+													borderRadius: 6
+												}}
+											>
+												{buffer?.length} pending
+											</span>
+										)}
+										<button
+											type='button'
+											onClick={handleAssemblySave}
 											style={{
-												background: "#e5f3dc",
-												padding: "6px 8px",
-												fontWeight: 600,
-												fontSize: 13
+												background: "#10B981",
+												color: "white",
+												padding: "6px 16px",
+												borderRadius: 8,
+												border: "none",
+												fontWeight: 700,
+												fontSize: 15
 											}}
 										>
-											{group.category}
-										</div>
-
-										{group.rows.map((row, idx) => {
-											const statusKey = rowHighlight[row.key]
-
-											let rowBg = "#ffffff"
-											if (statusKey === "complete")
-												rowBg = "#ecfdf3" // light green
-											else if (statusKey === "hold")
-												rowBg = "#FFFBEB" // light yellow
-											else if (statusKey === "cancel") rowBg = "#FEE2E2" // light red
-
-											return (
-												<div
-													key={row.key}
-													className='mobile-item-row'
-													style={{
-														display: "flex",
-														alignItems: "center",
-														padding: "6px 6px",
-														borderBottom: "1px solid #f3f4f6",
-														backgroundColor: rowBg,
-														gap: 6
-													}}
-												>
-													{/* Delete / Cancel on extreme left */}
-													<button
-														type='button'
-														onClick={() => cancelItemByKey(row.key)}
-														className='btn btn-xs action-danger'
-														style={{
-															width: 30,
-															height: 30,
-															borderRadius: 6,
-															fontSize: 14,
-															padding: 0,
-															margin: 0,
-															display: "flex",
-															alignItems: "center",
-															justifyContent: "center"
-														}}
-													>
-														<MdClose />
-													</button>
-
-													{/* Main info */}
-													<div
-														style={{
-															flex: 1,
-															minWidth: 0
-														}}
-													>
-														<div
-															style={{
-																display: "flex",
-																alignItems: "center",
-																gap: 2,
-																marginBottom: 2
-															}}
-														>
-															<span
-																style={{
-																	fontSize: 12,
-																	color: "#6b7280"
-																}}
-															>
-																{idx + 1}.
-															</span>
-															<span
-																style={{
-																	fontSize: 13,
-																	fontWeight: 600,
-																	whiteSpace: "nowrap",
-																	overflow: "hidden",
-																	textOverflow: "ellipsis"
-																}}
-															>
-																{row.name}
-															</span>
-														</div>
-														<div
-															style={{
-																display: "flex",
-																flexWrap: "wrap",
-																gap: 6,
-																fontSize: 12,
-																color: "#6b7280"
-															}}
-														>
-															<span>Orders: {row.orderCount}</span>
-															<span>•</span>
-															<span>MRP: ₹{row.mrp}</span>
-															<span>•</span>
-															<span style={{ fontWeight: "600", color: "black" }}>
-																QTY: ({row.totalB} : {row.totalP})
-															</span>
-														</div>
-													</div>
-
-													{/* Hold + Tick on right side (side by side) */}
-													<div
-														style={{
-															display: "flex",
-															flexDirection: "row",
-															gap: 4
-														}}
-													>
-														<button
-															type='button'
-															onClick={() => holdItemByKey(row.key)}
-															className='btn btn-xs action-warn'
-															style={{
-																minWidth: 60,
-																height: 26,
-																fontSize: 11,
-																borderRadius: 999
-															}}
-														>
-															HOLD
-														</button>
-														<button
-															type='button'
-															onClick={() => toggleCompleteForItemKey(row.key)}
-															className='btn btn-xs action-success'
-															style={{
-																minWidth: 60,
-																height: 32,
-																fontSize: 15,
-																fontWeight: 700,
-																borderRadius: 999,
-																padding: "0 14px"
-															}}
-														>
-															✓
-														</button>
-													</div>
-												</div>
-											)
-										})}
-									</div>
-								))}
+											SAVE
+										</button>
+									</>
+								)}
 							</div>
-						</section>
-					}
-				</div>
-			</div>
-		)
-	}
-
-	/* --------------------------- RENDER: DESKTOP --------------------------- */
-	let globalIndex = 0
-
-	return (
-		<>
-			<Sidebar />
-			<div className='right-side'>
-				<Header />
-
-				<div
-					className='page-header px-6 pt-2 pb-1'
-					style={{
-						borderBottom: "1px solid #e5e7eb",
-						display: "flex",
-						alignItems: "center"
-					}}
-				>
-					<span className='text-xl font-bold text-black flex items-center gap: 2'>
-						<span role='img' aria-label='tools'>
-							🛠️
-						</span>{" "}
-						Order Assembly
-					</span>
-					<div
-						style={{
-							marginLeft: "auto",
-							display: "flex",
-							alignItems: "center",
-							gap: 8
-						}}
-					>
-						<span className='text-sm font-semibold mr-2'>Orders Total: ₹ {ordersTotal}</span>
-						{buffer?.length > 0 && (
-							<span
-								className='text-xs px-2 py-1 rounded-md'
-								style={{
-									background: "#FEF3C7",
-									color: "#92400E"
-								}}
-							>
-								{buffer?.length} pending
-							</span>
+						</div>
+						{mode === ASSEMBLY_MODES.DEVICE && (
+							<DeviceTesting deviceBases={deviceBases} counters={uniqueCountersArr} />
 						)}
-						<button className='btn btn-lg action-success' type='button' onClick={handleAssemblySave}>
-							SAVE
-						</button>
+						<div
+							style={{
+								border: "1px solid #cccccc",
+								borderRadius: "200px",
+								background: "#dddddd",
+								display: "flex",
+								padding: "2px"
+							}}
+						>
+							{Object.entries(ASSEMBLY_MODES).map(([key, val]) => (
+								<button
+									key={key}
+									style={{
+										borderRadius: "200px",
+										padding: "6px 15px",
+										border: "none",
+										textTransform: "capitalize",
+										...(mode === val ?
+											{ background: "#10B981", color: "#fff" }
+										:	{ background: "#dddddd" })
+									}}
+									onClick={() => setMode(val)}
+								>
+									{key.toLowerCase()}
+								</button>
+							))}
+						</div>
 					</div>
 				</div>
 
-				{/* Two-column layout */}
-				<div className='assembly-layout'>
-					{/* LEFT: Crate Progress */}
+				{/* Row 2: [Crate] [Items]  Search */}
+				<div
+					style={{
+						padding: "0 12px 10px",
+						display: "flex",
+						alignItems: "center",
+						gap: 10
+					}}
+				>
+					{/* Tabs */}
+					<div
+						style={{
+							display: "flex",
+							gap: 0,
+							background: "#e5e7eb",
+							borderRadius: 999,
+							padding: 2
+						}}
+					>
+						<button
+							type='button'
+							onClick={() => setMobileTab("crate")}
+							style={{
+								padding: "6px 10px",
+								fontSize: 12,
+								fontWeight: 600,
+								border: "none",
+								background: mobileTab === "crate" ? "#111827" : "transparent",
+								color: mobileTab === "crate" ? "#f9fafb" : "#4b5563",
+								borderRadius: 999
+							}}
+						>
+							Crates
+						</button>
+						<button
+							type='button'
+							onClick={() => setMobileTab("items")}
+							style={{
+								padding: "6px 10px",
+								fontSize: 12,
+								fontWeight: 600,
+								border: "none",
+								background: mobileTab === "items" ? "#111827" : "transparent",
+								color: mobileTab === "items" ? "#f9fafb" : "#4b5563",
+								borderRadius: 999
+							}}
+						>
+							Items
+						</button>
+					</div>
+
+					{/* Search bar (takes remaining ~70%) */}
+					<input
+						type='text'
+						placeholder='Search...'
+						value={search}
+						onChange={(e) => setSearch(e.target.value)}
+						style={{
+							flex: 1,
+							height: 32,
+							borderRadius: 8,
+							border: "1px solid #d1d5db",
+							padding: "0 10px",
+							fontSize: 13,
+							minWidth: 0
+						}}
+					/>
+
+					<BarcodeInput onScan={handleBarcodeScan} />
+					<button
+						className={"assembly-icon-button " + (isSoundOn ? "enabled" : "")}
+						onClick={() => setIsSoundOn((i) => !i)}
+					>
+						{isSoundOn ?
+							<IoVolumeHigh size={22} />
+						:	<IoVolumeMuteOutline size={22} />}
+					</button>
+				</div>
+			</div>
+
+			{/* Body: either Crate or Item Summary */}
+			<div
+				className='assembly-layout-mobile'
+				style={{
+					height: "calc(100vh - 92px)",
+					overflowY: "auto"
+				}}
+			>
+				{mobileTab === "crate" ?
 					<section className='panel'>
-						<div className='panel-header'>Crate Progress (Counters = {uniqueCountersArr.length})</div>
 						<div className='panel-body'>
 							<div className='crate-list'>
 								{uniqueCountersArr.map((c, idx) => {
@@ -1436,16 +1142,17 @@ const OrderAssembly = () => {
 									return (
 										<div key={c.uuid} className='crate-item'>
 											<div className='crate-tube'>
-												<div className='crate-fill' style={{ width: "0%" }} />
-												<div className='crate-text'>
-													{idx + 1}. {c.title}
-													<span className='crate-orders'>
+												<div style={{ overflow: "auto" }}>
+													<div className='crate-text'>
+														{idx + 1}. {c.title}
+													</div>
+													<div className='crate-orders'>
 														{chips.map((o) => (
 															<span key={o.number} className='chip'>
-																(B-{o.number} ₹{Math.round(o.total)})
+																B-{o.number} • ₹{Math.round(o.total)}
 															</span>
 														))}
-													</span>
+													</div>
 												</div>
 												<div className='crate-count'>
 													{bp.b} : {bp.p}
@@ -1457,52 +1164,24 @@ const OrderAssembly = () => {
 							</div>
 						</div>
 					</section>
-
-					{/* RIGHT: Item Summary with per-row actions */}
-					<section className='panel right-pane'>
-						<div className='panel-header'>
-							<div className='flex-row'>
-								<span>Item Summary</span>
-							</div>
-						</div>
-
+				:	<section className='panel right-pane'>
 						<div
 							className='summary'
 							style={{
-								padding: "8px",
-								maxHeight: "calc(100vh - 140px)",
+								// paddingBottom: 64,
+								maxHeight: "calc(100vh - 110px)",
 								overflowY: "auto"
 							}}
 						>
-							{/* Search bar */}
-							<div style={{ marginBottom: 8 }}>
-								<input
-									type='text'
-									placeholder='Search item or MRP...'
-									value={search}
-									onChange={(e) => setSearch(e.target.value)}
-									style={{
-										width: "100%",
-										borderRadius: 8,
-										border: "1px solid #d1d5db",
-										padding: "6px 10px",
-										fontSize: 14
-									}}
-								/>
-							</div>
-
+							{/* Grouped items */}
 							{filtered.map((group) => (
 								<div
 									key={group.category}
-									style={{
-										marginBottom: 12,
-										borderRadius: 4,
-										overflow: "hidden",
-										border: "1px solid #e5e7eb"
-									}}
+									className='mobile-category-block'
+									style={{ marginBottom: 8 }}
 								>
-									{/* Category header */}
 									<div
+										className='mobile-category-header'
 										style={{
 											background: "#e5f3dc",
 											padding: "6px 8px",
@@ -1513,28 +1192,8 @@ const OrderAssembly = () => {
 										{group.category}
 									</div>
 
-									{/* Table header */}
-									<div
-										style={{
-											display: "grid",
-											gridTemplateColumns: "40px 1fr 70px 100px 100px 160px",
-											fontSize: 12,
-											fontWeight: 600,
-											background: "#f9fafb",
-											borderBottom: "1px solid #e5e7eb"
-										}}
-									>
-										<div style={{ padding: "4px 6px" }}>Sr.</div>
-										<div style={{ padding: "4px 6px" }}>Item</div>
-										<div style={{ padding: "4px 6px" }}>MRP</div>
-										<div style={{ padding: "4px 6px" }}>Qty (B : P)</div>
-										<div style={{ padding: "4px 6px" }}>Orders</div>
-										<div style={{ padding: "4px 6px" }}>Action</div>
-									</div>
-
-									{group.rows.map((row) => {
+									{group.rows.map((row, idx) => {
 										const statusKey = rowHighlight[row.key]
-										const sr = ++globalIndex
 
 										let rowBg = "#ffffff"
 										if (statusKey === "complete")
@@ -1546,98 +1205,98 @@ const OrderAssembly = () => {
 										return (
 											<div
 												key={row.key}
+												className='mobile-item-row'
 												style={{
-													display: "grid",
-													gridTemplateColumns: "40px 1fr 70px 100px 100px 160px",
-													fontSize: 12,
+													display: "flex",
+													alignItems: "center",
+													padding: "6px 6px",
 													borderBottom: "1px solid #f3f4f6",
-													backgroundColor: rowBg
+													backgroundColor: rowBg,
+													gap: 6
 												}}
 											>
-												<div
+												{/* Delete / Cancel on extreme left */}
+												<button
+													type='button'
+													onClick={() => cancelItemByKey(row.key)}
+													className='btn btn-xs action-danger'
 													style={{
-														padding: "6px 6px",
+														width: 30,
+														height: 30,
+														borderRadius: 6,
+														fontSize: 14,
+														padding: 0,
+														margin: 0,
 														display: "flex",
-														alignItems: "center"
+														alignItems: "center",
+														justifyContent: "center"
 													}}
 												>
-													{sr}
-												</div>
+													<MdClose />
+												</button>
+
+												{/* Main info */}
 												<div
 													style={{
-														padding: "6px 6px",
-														cursor: "pointer"
+														flex: 1,
+														minWidth: 0
 													}}
-													onClick={() => setSelectedKey(row.key)}
 												>
 													<div
 														style={{
-															fontWeight: 600,
-															marginBottom: 2,
-															whiteSpace: "nowrap",
-															overflow: "hidden",
-															textOverflow: "ellipsis"
+															display: "flex",
+															alignItems: "center",
+															gap: 2,
+															marginBottom: 2
 														}}
 													>
-														{row.name}
+														<span
+															style={{
+																fontSize: 12,
+																color: "#6b7280"
+															}}
+														>
+															{idx + 1}.
+														</span>
+														<span
+															style={{
+																fontSize: 13,
+																fontWeight: 600,
+																whiteSpace: "nowrap",
+																overflow: "hidden",
+																textOverflow: "ellipsis"
+															}}
+														>
+															{row.name}
+														</span>
 													</div>
 													<div
 														style={{
-															fontSize: 11,
+															display: "flex",
+															flexWrap: "wrap",
+															gap: 6,
+															fontSize: 12,
 															color: "#6b7280"
 														}}
 													>
-														MRP: {row.mrp} &nbsp; Qty: {row.totalB} : {row.totalP}
+														<span>Orders: {row.orderCount}</span>
+														<span>•</span>
+														<span>MRP: ₹{row.mrp}</span>
+														<span>•</span>
+														<span style={{ fontWeight: "600", color: "black" }}>
+															QTY: ({row.totalB} : {row.totalP})
+														</span>
 													</div>
 												</div>
+
+												{/* Hold + Tick on right side (side by side) */}
 												<div
 													style={{
-														padding: "6px 6px",
 														display: "flex",
-														alignItems: "center"
+														flexDirection: "row",
+														gap: 4
 													}}
 												>
-													{row.mrp}
-												</div>
-												<div
-													style={{
-														padding: "6px 6px",
-														display: "flex",
-														alignItems: "center"
-													}}
-												>
-													{row.totalB} : {row.totalP}
-												</div>
-												<div
-													style={{
-														padding: "6px 6px",
-														display: "flex",
-														alignItems: "center"
-													}}
-												>
-													{row.orderCount}
-												</div>
-												<div
-													style={{
-														padding: "6px 6px",
-														display: "flex",
-														alignItems: "center",
-														gap: 6
-													}}
-												>
-													<button
-														type='button'
-														onClick={() => cancelItemByKey(row.key)}
-														className='btn btn-xs action-danger'
-														style={{
-															minWidth: 30,
-															height: 26,
-															borderRadius: 6,
-															fontSize: 14
-														}}
-													>
-														🗑
-													</button>
 													<button
 														type='button'
 														onClick={() => holdItemByKey(row.key)}
@@ -1674,9 +1333,9 @@ const OrderAssembly = () => {
 							))}
 						</div>
 					</section>
-				</div>
+				}
 			</div>
-		</>
+		</div>
 	)
 }
 

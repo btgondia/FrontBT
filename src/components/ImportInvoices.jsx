@@ -76,7 +76,7 @@ const ImportInvoices = ({ file, onClose }) => {
 					}
 					
 					billingParams.items[item.item_uuid].dms_scheme_discount =
-						billingParams.counter.apply_dms_discount
+						billingParams?.counter?.apply_dms_discount
 						? i.applied_scheme_discount || 0
 						: 0
 				}
