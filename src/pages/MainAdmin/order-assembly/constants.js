@@ -1,4 +1,4 @@
-import { pluralize } from "./helpers"
+import { pluralize } from "../../../utils/helperFunctions"
 
 export const ACTION_TRIGGER_SOURCE = {
 	BARCODE: "barcode",
@@ -62,4 +62,14 @@ export const ITEM_STATUS_COLORS = {
 export const ASSEMBLY_MODES = {
 	NORMAL: "normal",
 	DEVICE: "device"
+}
+
+export const MOBILE_ASSEMBLY_TABS = {
+	CRATES: 0,
+	ITEMS: 1
+}
+
+export const MOBILE_ASSEMBLY_TAB_LABELS = {
+	[MOBILE_ASSEMBLY_TABS.CRATES]: "Crates",
+	[MOBILE_ASSEMBLY_TABS.ITEMS]: "Items"
 }
