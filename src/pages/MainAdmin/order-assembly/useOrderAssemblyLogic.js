@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useCallback } from "react"
-import { useLocation } from "react-router-dom"
 import axios from "axios"
 import { Billing } from "../../../Apis/functions"
 import { ITEM_STATUS, VOICE_MESSAGE, ASSEMBLY_MODES, MOBILE_ASSEMBLY_TABS } from "./constants"
@@ -19,15 +18,11 @@ import {
 } from "./helpers"
 
 export const useOrderAssemblyLogic = () => {
-	const location = useLocation()
-
 	const [orders, setOrders] = useState([])
 	const [search, setSearch] = useState("")
 	const [counters, setCounters] = useState([])
-	const [itemsMaster, setItemsMaster] = useState(location.state?.itemsMaster || window.BT_ITEMS || null)
-	const [categoriesMaster, setCategoriesMaster] = useState(
-		location.state?.categoriesMaster || window.BT_CATEGORIES || null
-	)
+	const [itemsMaster, setItemsMaster] = useState(null)
+	const [categoriesMaster, setCategoriesMaster] = useState(null)
 	const [counterIndex, setCounterIndex] = useState(new Map())
 	const [mode, setMode] = useState(ASSEMBLY_MODES.NORMAL)
 	const [buffer, setBuffer] = useState({})
@@ -85,14 +80,32 @@ export const useOrderAssemblyLogic = () => {
 	}, [itemsMaster])
 
 	useEffect(() => {
-		const stateOrders = location.state?.orders
-		if (Array.isArray(stateOrders) && stateOrders.length) {
-			setOrders(stateOrders)
-			return
-		}
 		const sessionOrders = loadFullOrdersFromSession()
 		setOrders(sessionOrders)
-	}, [location.state])
+	}, [])
+
+	function arrangeCounters(arr) {
+		console.log(arr)
+		const placed = []
+		const remaining = []
+
+		for (const item of arr) {
+			if (item.crateSerialNumber && item.crateSerialNumber >= 0) {
+				placed[item.crateSerialNumber - 1] = item
+			} else remaining.push(item)
+		}
+
+		remaining.sort((a, b) => a.sort_order - b.sort_order)
+
+		let r = 0
+		for (let i = 0; r < remaining.length; i++) {
+			if (!placed[i]) {
+				placed[i] = remaining[r++]
+			}
+		}
+
+		return placed
+	}
 
 	// Calculations
 	const itemsIdx = useMemo(() => buildItemsIndex(itemsMaster || []), [itemsMaster])
@@ -119,9 +132,15 @@ export const useOrderAssemblyLogic = () => {
 			const fromIdx = counterIndex.get(id)
 			const title = fromIdx?.title || o.counter_title || "Unnamed Counter"
 			const sortOrder = nnum(fromIdx?.sort_order ?? o.counter_sort_order, 9999)
-			if (!map.has(id)) map.set(id, { uuid: id, title, sort_order: sortOrder })
+			const caretSN = o.crateSerialNumber || null
+			if (!map.has(id)) {
+				map.set(id, { uuid: id, title, sort_order: sortOrder, crateSerialNumber: caretSN })
+			} else {
+				const existing = map.get(id)
+				if (!existing.crateSerialNumber && caretSN) existing.crateSerialNumber = caretSN
+			}
 		}
-		return Array.from(map.values()).sort((a, b) => a.sort_order - b.sort_order)
+		return arrangeCounters(Array.from(map.values()))
 	}, [orders, counterIndex])
 
 	const ordersByCounter = useMemo(() => {
@@ -204,29 +223,35 @@ export const useOrderAssemblyLogic = () => {
 			for (const o of orders) {
 				for (const item of o?.item_details) {
 					if (key === item?.item_uuid) {
-						toQueue[`${item.order_uuid}::${key}`] = newStatus
+						toQueue[`${o.order_uuid}::${key}`] = newStatus
 					}
 				}
 			}
 
-			setBuffer(({ length, ...prev }) => {
+			setBuffer(({ size, ...prev }) => {
 				const newState = { ...prev, ...toQueue }
-				const newLength = Object.keys(newState || {}).length
-				return { ...newState, length: newLength }
+				const newSize = Object.keys(newState || {}).length
+				return { ...newState, size: newSize }
 			})
 		},
 		[orders]
 	)
 
 	const save = async () => {
-		if (!buffer.length) return
+		if (!buffer.size) return
 		setLoading(true)
 		try {
+			const { size, ..._buffer } = buffer
 			const editsByOrder = new Map()
-			for (const e of Object.values(buffer)) {
-				const list = editsByOrder.get(e.order_uuid) || []
-				list.push(e)
-				editsByOrder.set(e.order_uuid, list)
+			for (const key in _buffer) {
+				const [order_uuid, item_uuid] = key.split("::")
+				const list = editsByOrder.get(order_uuid) || []
+				list.push({
+					order_uuid,
+					key: item_uuid,
+					newStatus: _buffer[key]
+				})
+				editsByOrder.set(order_uuid, list)
 			}
 			const sessionFull = loadFullOrdersFromSession()
 			const changedDocs = []
@@ -267,6 +292,12 @@ export const useOrderAssemblyLogic = () => {
 					}))
 				})
 				full = { ...full, ...billingResponse }
+
+				const counterIdx = uniqueCountersArr.findIndex((c) => c.uuid === full.counter_uuid)
+				if (counterIdx !== -1) {
+					full.crateSerialNumber = counterIdx
+				}
+
 				if (allDoneOrCancelled(full.item_details)) {
 					full.status = [...(full.status || []), { stage: "2", time: Date.now(), user_uuid }]
 				}

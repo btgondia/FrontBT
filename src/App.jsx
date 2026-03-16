@@ -97,22 +97,21 @@ import PurchaseRate from "./pages/Reports/PurchaseRate"
 import GSTReturnsReport from "./pages/Reports/GSTReturnsReport"
 import HSNCode from "./pages/Master/HsnCode"
 import TripsModal from "./pages/QuikAccess/TripsModal"
-import AssemblyGrouping from "./pages/MainAdmin/AssemblyGrouping";
-
+import AssemblyGrouping from "./pages/MainAdmin/AssemblyGrouping"
 
 /* ⭐ NEW: Assembly Devices page */
 import AssemblyDevices from "./pages/MainAdmin/AssemblyDevices"
 import PrivacyPolicy from "./Policy"
 
 export const server = ["https://api.btgondia.com", "https://dev.btgondia.com/api", "http://localhost:9000"][
-	window.location.origin.includes("dev.btgondia")
-	? 1 // ! DONOT CHANGE THIS (for dev server)
-	: window.location.origin.includes("btgondia")
-		? 0 // ! DONOT CHANGE THIS (for prod server)
-		: 2 // * for local env (for local server)
+	window.location.origin.includes("dev.btgondia") ?
+		1 // ! DONOT CHANGE THIS (for dev server)
+	: window.location.origin.includes("btgondia") ?
+		0 // ! DONOT CHANGE THIS (for prod server)
+	:	2 // * for local env (for local server)
 ]
 
-export let Version = 423 // ? increment version count for each deployment rather than each count
+export let Version = 424 // ? increment version count for each deployment rather than each count
 
 function App() {
 	const [userType, setUserType] = useState(sessionStorage.getItem("userType"))
@@ -135,7 +134,7 @@ function App() {
 	} = context
 	axios.defaults.baseURL = server
 
-	const getUserType = async controller => {
+	const getUserType = async (controller) => {
 		let user_uuid = localStorage.getItem("user_uuid")
 		if (user_uuid) {
 			const response = await axios({
@@ -172,7 +171,7 @@ function App() {
 
 	const clearLocalStorageKeys = () => {
 		const keysToClear = ["itemsData", "routesData", "companiesData", "paymentModesData"]
-		keysToClear.forEach(key => {
+		keysToClear.forEach((key) => {
 			localStorage.removeItem(key)
 		})
 	}
@@ -192,26 +191,26 @@ function App() {
 	document.title = "BT"
 
 	return (
-		<div className="App">
+		<div className='App'>
 			<Routes>
-				<Route path="/" element={<Navigate replace to={"/users"} />} />
-				<Route path="/Privacy_Policy" element={<PrivacyPolicy />} />
-				<Route path="/TnC" element={<TermsAndConditions />} />
-				<Route path="/pdf/:order_uuid" element={<OrderPdf />} />
+				<Route path='/' element={<Navigate replace to={"/users"} />} />
+				<Route path='/Privacy_Policy' element={<PrivacyPolicy />} />
+				<Route path='/TnC' element={<TermsAndConditions />} />
+				<Route path='/pdf/:order_uuid' element={<OrderPdf />} />
 				<Route
-					path="/counter/:short_link"
+					path='/counter/:short_link'
 					element={
 						<MobileLayout>
 							<LinkedCounter />
 						</MobileLayout>
 					}
 				/>
-				<Route path="/counter/:short_link/:campaign_short_link" element={<LinkedCounter />} />
-				{userType === "1" ? (
+				<Route path='/counter/:short_link/:campaign_short_link' element={<LinkedCounter />} />
+				{userType === "1" ?
 					<>
 						{/* users routes */}
 						<Route
-							path="/users"
+							path='/users'
 							element={
 								<MobileLayout>
 									<Main />
@@ -219,7 +218,7 @@ function App() {
 							}
 						/>
 						<Route
-							path="/users/orders"
+							path='/users/orders'
 							element={
 								<MobileLayout>
 									<Orders refreshDb={refreshDb} />
@@ -227,7 +226,7 @@ function App() {
 							}
 						/>
 						<Route
-							path="/users/stock-adjustments"
+							path='/users/stock-adjustments'
 							element={
 								<MobileLayout>
 									<StockAdjustmentMobile />
@@ -236,7 +235,7 @@ function App() {
 						/>
 
 						<Route
-							path="/users/route/:route_uuid"
+							path='/users/route/:route_uuid'
 							element={
 								<MobileLayout>
 									<Orders />
@@ -244,7 +243,7 @@ function App() {
 							}
 						/>
 						<Route
-							path="/users/advanceRoute/:route_uuid"
+							path='/users/advanceRoute/:route_uuid'
 							element={
 								<MobileLayout>
 									<AdvanceOrdering />
@@ -252,7 +251,7 @@ function App() {
 							}
 						/>
 						<Route
-							path="/users/processing"
+							path='/users/processing'
 							element={
 								<MobileLayout>
 									<Processing />
@@ -260,7 +259,7 @@ function App() {
 							}
 						/>
 						<Route
-							path="/users/checking"
+							path='/users/checking'
 							element={
 								<MobileLayout>
 									<Processing />
@@ -268,17 +267,17 @@ function App() {
 							}
 						/>
 						<Route
-							path="/users/delivery"
+							path='/users/delivery'
 							element={
 								<MobileLayout>
 									<Processing />
 								</MobileLayout>
 							}
 						/>
-						<Route path="/users/stock-transfer" element={<StockTransfer />} />
-						<Route path="/users/outstandingCollection" element={<OutstangingsCollection />} />
+						<Route path='/users/stock-transfer' element={<StockTransfer />} />
+						<Route path='/users/outstandingCollection' element={<OutstangingsCollection />} />
 						<Route
-							path="/users/advanceOrdering"
+							path='/users/advanceOrdering'
 							element={
 								<MobileLayout>
 									<AdvanceOrdering refreshDb={refreshDb} />
@@ -286,7 +285,7 @@ function App() {
 							}
 						/>
 						<Route
-							path="/users/processing/:trip_uuid"
+							path='/users/processing/:trip_uuid'
 							element={
 								<MobileLayout>
 									<ProcessingOrders />
@@ -294,7 +293,7 @@ function App() {
 							}
 						/>
 						<Route
-							path="/users/orders/:counter_uuid"
+							path='/users/orders/:counter_uuid'
 							element={
 								<MobileLayout>
 									<SelectedCounterOrder />
@@ -302,7 +301,7 @@ function App() {
 							}
 						/>
 						<Route
-							path="/users/advanceOrdering/:counter_uuid"
+							path='/users/advanceOrdering/:counter_uuid'
 							element={
 								<MobileLayout>
 									<AdvanceOrderingPage />
@@ -311,15 +310,7 @@ function App() {
 						/>
 
 						<Route
-							path="/users/checking/:trip_uuid"
-							element={
-								<MobileLayout>
-									<ProcessingOrders />
-								</MobileLayout>
-							}
-						/>
-											<Route
-							path="/users/delivery/:trip_uuid"
+							path='/users/checking/:trip_uuid'
 							element={
 								<MobileLayout>
 									<ProcessingOrders />
@@ -327,7 +318,15 @@ function App() {
 							}
 						/>
 						<Route
-							path="/users/processing/:trip_uuid/:order_uuid"
+							path='/users/delivery/:trip_uuid'
+							element={
+								<MobileLayout>
+									<ProcessingOrders />
+								</MobileLayout>
+							}
+						/>
+						<Route
+							path='/users/processing/:trip_uuid/:order_uuid'
 							element={
 								<MobileLayout>
 									<ProcessingOrders />
@@ -336,7 +335,7 @@ function App() {
 						/>
 						{/* NEW: Assembly view for all orders in a trip (mobile) */}
 						<Route
-							path="/users/processing/:trip_uuid/assembly"
+							path='/users/processing/:trip_uuid/assembly'
 							element={
 								<MobileLayout>
 									<OrderAssembly />
@@ -344,7 +343,7 @@ function App() {
 							}
 						/>
 						<Route
-							path="/users/checking/:trip_uuid/:order_uuid"
+							path='/users/checking/:trip_uuid/:order_uuid'
 							element={
 								<MobileLayout>
 									<ProcessingOrders />
@@ -353,7 +352,7 @@ function App() {
 						/>
 
 						<Route
-							path="/users/delivery/:trip_uuid/:order_uuid"
+							path='/users/delivery/:trip_uuid/:order_uuid'
 							element={
 								<MobileLayout>
 									<ProcessingOrders />
@@ -361,101 +360,100 @@ function App() {
 							}
 						/>
 
-						<Route path="*" element={<Navigate replace to={"/users"} />} />
+						<Route path='*' element={<Navigate replace to={"/users"} />} />
 					</>
-				) : userType === "0" ? (
+				: userType === "0" ?
 					<>
 						{/* admin Routes */}
-						<Route path="/admin" element={<MainAdmin />} />
-						<Route path="/trip" element={<MainAdmin />} />
-						<Route path="/accounting_dashboard" element={<MainAdmin1 />} />
+						<Route path='/admin' element={<MainAdmin />} />
+						<Route path='/trip' element={<MainAdmin />} />
+						<Route path='/accounting_dashboard' element={<MainAdmin1 />} />
 
-						<Route path="/admin/SalesmanItemSuggestion" element={<SalesmanItemSuggestion />} />
-						<Route path="/admin/routes" element={<RoutesPage />} />
-						<Route path="/admin/InvoiceNumberWiseOrder" element={<InvoiceNumberWiseOrder />} />
-						<Route path="/admin/itemCategories" element={<ItemCategories />} />
-						<Route path="/admin/counterGroup" element={<CounterGroup />} />
-						<Route path="/admin/counterCharges" element={<CounterCharges />} />
-						<Route path="/admin/itemGroup" element={<ItemGroup />} />
-						<Route path="/admin/counter" element={<Counter />} />
-						<Route path="/admin/TestCounter" element={<TestCounter />} />
-						<Route path="/admin/purchaseRate" element={<PurchaseRate />} />
-						<Route path="/admin/adminUsers" element={<Users />} />
-						<Route path="/admin/items" element={<ItemsPage />} />
-						<Route path="/admin/hsn_code" element={<HSNCode />} />
-						<Route path="/admin/ledgers" element={<LedgersPage />} />
-						<Route path="/admin/ledgerGroup" element={<LedgerGroups />} />
-						<Route path="/admin/ChequeNumberSearch" element={<ChequeNumberSearch />} />
-						<Route path="/admin/StockValuationReport" element={<StockValuationReport />} />
-						<Route path="/admin/BankStatementImport" element={<BankStatementImport />} />
-						<Route path="/admin/GSTReturnReport" element={<GSTReturnsReport />} />
+						<Route path='/admin/SalesmanItemSuggestion' element={<SalesmanItemSuggestion />} />
+						<Route path='/admin/routes' element={<RoutesPage />} />
+						<Route path='/admin/InvoiceNumberWiseOrder' element={<InvoiceNumberWiseOrder />} />
+						<Route path='/admin/itemCategories' element={<ItemCategories />} />
+						<Route path='/admin/counterGroup' element={<CounterGroup />} />
+						<Route path='/admin/counterCharges' element={<CounterCharges />} />
+						<Route path='/admin/itemGroup' element={<ItemGroup />} />
+						<Route path='/admin/counter' element={<Counter />} />
+						<Route path='/admin/TestCounter' element={<TestCounter />} />
+						<Route path='/admin/purchaseRate' element={<PurchaseRate />} />
+						<Route path='/admin/adminUsers' element={<Users />} />
+						<Route path='/admin/items' element={<ItemsPage />} />
+						<Route path='/admin/hsn_code' element={<HSNCode />} />
+						<Route path='/admin/ledgers' element={<LedgersPage />} />
+						<Route path='/admin/ledgerGroup' element={<LedgerGroups />} />
+						<Route path='/admin/ChequeNumberSearch' element={<ChequeNumberSearch />} />
+						<Route path='/admin/StockValuationReport' element={<StockValuationReport />} />
+						<Route path='/admin/BankStatementImport' element={<BankStatementImport />} />
+						<Route path='/admin/GSTReturnReport' element={<GSTReturnsReport />} />
 
-						<Route path="/admin/expense" element={<ExpansesPage />} />
-						<Route path="/admin/warehouse" element={<Warehouse />} />
-						<Route path="/admin/companies" element={<Companies />} />
+						<Route path='/admin/expense' element={<ExpansesPage />} />
+						<Route path='/admin/warehouse' element={<Warehouse />} />
+						<Route path='/admin/companies' element={<Companies />} />
 
-						<Route path="/admin/autoIncreaseQty" element={<AutoIncreaseQuantity />} />
-						<Route path="/admin/autoIncreaseItem" element={<AutoIncreaseItem />} />
-						<Route path="/admin/OrderRangeIncentive" element={<OrderRangeIncentive />} />
-						<Route path="/admin/DeliveryIncentive" element={<DeliveryIncentive />} />
-						<Route path="/admin/OrderForm" element={<OrderForms />} />
-						<Route path="/admin/ItemIncentive" element={<ItemIncentive />} />
-						<Route path="/admin/addOrder" element={<AddOrder />} />
-						<Route path="/admin/purchaseInvoice" element={<PurchaseInvoice />} />
-						<Route path="/admin/editPurchaseInvoice/:order_uuid" element={<PurchaseInvoice />} />
-						<Route path="/admin/creditNote" element={<CreditNote />} />
-						<Route path="/admin/editCreditNote/:order_uuid" element={<CreditNote />} />
-						<Route path="/admin/addVoucher" element={<AddVoucher />} />
-						<Route path="/admin/editVoucher/:accounting_voucher_uuid" element={<AddVoucher />} />
+						<Route path='/admin/autoIncreaseQty' element={<AutoIncreaseQuantity />} />
+						<Route path='/admin/autoIncreaseItem' element={<AutoIncreaseItem />} />
+						<Route path='/admin/OrderRangeIncentive' element={<OrderRangeIncentive />} />
+						<Route path='/admin/DeliveryIncentive' element={<DeliveryIncentive />} />
+						<Route path='/admin/OrderForm' element={<OrderForms />} />
+						<Route path='/admin/ItemIncentive' element={<ItemIncentive />} />
+						<Route path='/admin/addOrder' element={<AddOrder />} />
+						<Route path='/admin/purchaseInvoice' element={<PurchaseInvoice />} />
+						<Route path='/admin/editPurchaseInvoice/:order_uuid' element={<PurchaseInvoice />} />
+						<Route path='/admin/creditNote' element={<CreditNote />} />
+						<Route path='/admin/editCreditNote/:order_uuid' element={<CreditNote />} />
+						<Route path='/admin/addVoucher' element={<AddVoucher />} />
+						<Route path='/admin/editVoucher/:accounting_voucher_uuid' element={<AddVoucher />} />
 
-						<Route path="/admin/AddOutStanding" element={<AddOutStanding />} />
-						<Route path="/admin/addStock" element={<AddStock />} />
-						<Route path="/admin/orderAssembly" element={<OrderAssembly />} />
-						<Route path="/admin/assembly-grouping" element={<AssemblyGrouping />} />
-						<Route path="/admin/adjustStock" element={<AdjustStock />} />
-						<Route path="/admin/userActivity" element={<UserActivity />} />
-						<Route path="/admin/unknownEntry" element={<UknownVouchers />} />
-						<Route path="/admin/SearchTransitionTags" element={<SearchTransitionTags />} />
+						<Route path='/admin/AddOutStanding' element={<AddOutStanding />} />
+						<Route path='/admin/addStock' element={<AddStock />} />
+						<Route path='/admin/orderAssembly' element={<OrderAssembly />} />
+						<Route path='/admin/assembly-grouping' element={<AssemblyGrouping />} />
+						<Route path='/admin/adjustStock' element={<AdjustStock />} />
+						<Route path='/admin/userActivity' element={<UserActivity />} />
+						<Route path='/admin/unknownEntry' element={<UknownVouchers />} />
+						<Route path='/admin/SearchTransitionTags' element={<SearchTransitionTags />} />
 
-						<Route path="/admin/performanceSummary" element={<PerformanceSummary />} />
-						<Route path="/admin/deductionsReport" element={<DeductionsReport />} />
-						<Route path="/admin/counterReport" element={<CounterReport />} />
-						<Route path="/admin/upiTransactionReport" element={<UPITransection />} />
-						<Route path="/admin/completeOrderReport" element={<CompleteOrder />} />
-						<Route path="/admin/stockTracker" element={<StockTrack />} />
-						<Route path="/admin/counterStockReport" element={<CounterStockReport />} />
-						<Route path="/admin/cashRegisterReport" element={<CashRegisterReport />} />
-						<Route path="/admin/StockAdjustmentReport" element={<StockAdjustmentReport />} />
-						<Route path="/admin/RetailerMarginReport" element={<RetailerMarginReport />} />
-						<Route path="/admin/ItemsReport" element={<ItemDetails />} />
-						<Route path="/admin/CompletedTripsReport" element={<CompletedTrips />} />
-						<Route path="/admin/CounterLeger" element={view ? <CounterLegerReport /> : <CounterLeger />} />
-						<Route path="/admin/Outstandings" element={<Outstanding />} />
-						<Route path="/admin/pendingEntry" element={<PendingsEntry />} />
-						<Route path="/admin/pendingReciptsEntry" element={<PendingReciptsEntry />} />
-						<Route path="/admin/stockTransferVouchers" element={<StockTransferVouchers />} />
-						<Route path="/admin/currentStock" element={<CurrentStock />} />
-						<Route path="/admin/PartyWiseCompanyDiscount" element={<PartyWiseCompanyDiscount />} />
-						<Route path="/admin/signedBills" element={<SignedBills />} />
-						<Route path="/admin/tasks" element={<TasksPage />} />
+						<Route path='/admin/performanceSummary' element={<PerformanceSummary />} />
+						<Route path='/admin/deductionsReport' element={<DeductionsReport />} />
+						<Route path='/admin/counterReport' element={<CounterReport />} />
+						<Route path='/admin/upiTransactionReport' element={<UPITransection />} />
+						<Route path='/admin/completeOrderReport' element={<CompleteOrder />} />
+						<Route path='/admin/stockTracker' element={<StockTrack />} />
+						<Route path='/admin/counterStockReport' element={<CounterStockReport />} />
+						<Route path='/admin/cashRegisterReport' element={<CashRegisterReport />} />
+						<Route path='/admin/StockAdjustmentReport' element={<StockAdjustmentReport />} />
+						<Route path='/admin/RetailerMarginReport' element={<RetailerMarginReport />} />
+						<Route path='/admin/ItemsReport' element={<ItemDetails />} />
+						<Route path='/admin/CompletedTripsReport' element={<CompletedTrips />} />
+						<Route path='/admin/CounterLeger' element={view ? <CounterLegerReport /> : <CounterLeger />} />
+						<Route path='/admin/Outstandings' element={<Outstanding />} />
+						<Route path='/admin/pendingEntry' element={<PendingsEntry />} />
+						<Route path='/admin/pendingReciptsEntry' element={<PendingReciptsEntry />} />
+						<Route path='/admin/stockTransferVouchers' element={<StockTransferVouchers />} />
+						<Route path='/admin/currentStock' element={<CurrentStock />} />
+						<Route path='/admin/PartyWiseCompanyDiscount' element={<PartyWiseCompanyDiscount />} />
+						<Route path='/admin/signedBills' element={<SignedBills />} />
+						<Route path='/admin/tasks' element={<TasksPage />} />
 
 						{/* ⭐ NEW: Assembly Devices */}
-						<Route path="/admin/assemblyDevices" element={<AssemblyDevices />} />
+						<Route path='/admin/assemblyDevices' element={<AssemblyDevices />} />
 
-						<Route path="/admin/BankReconciliation" element={<BankReconciliation />} />
-						<Route path="/admin/OpeningBalanceReport" element={<OpeningBalanceReport />} />
-						<Route path="*" element={<Navigate replace to={view ? "/accounting_dashboard" : "/trip"} />} />
+						<Route path='/admin/BankReconciliation' element={<BankReconciliation />} />
+						<Route path='/admin/OpeningBalanceReport' element={<OpeningBalanceReport />} />
+						<Route path='*' element={<Navigate replace to={view ? "/accounting_dashboard" : "/trip"} />} />
 					</>
-				) : (
-					<>
-						<Route path="*" element={<Navigate replace to={"/login"} />} />
-						<Route path="/login" element={<LoginPage setUserType={setUserType} />} />
+				:	<>
+						<Route path='*' element={<Navigate replace to={"/login"} />} />
+						<Route path='/login' element={<LoginPage setUserType={setUserType} />} />
 					</>
-				)}
+				}
 			</Routes>
-			{calculationPopup ? (
+			{calculationPopup ?
 				<CalculateLines />
-			) : loading || pageLoading ? (
+			: loading || pageLoading ?
 				<div
 					style={{
 						width: "30px",
@@ -466,36 +464,32 @@ function App() {
 						zIndex: "999999999999999999"
 					}}
 				>
-					<svg viewBox="0 0 100 100">
-						<path d="M10 50A40 40 0 0 0 90 50A40 44.8 0 0 1 10 50" fill="#000" stroke="none">
+					<svg viewBox='0 0 100 100'>
+						<path d='M10 50A40 40 0 0 0 90 50A40 44.8 0 0 1 10 50' fill='#000' stroke='none'>
 							<animateTransform
-								attributeName="transform"
-								type="rotate"
-								dur="1s"
-								repeatCount="indefinite"
-								keyTimes="0;1"
-								values="0 50 51;360 50 51"
+								attributeName='transform'
+								type='rotate'
+								dur='1s'
+								repeatCount='indefinite'
+								keyTimes='0;1'
+								values='0 50 51;360 50 51'
 							></animateTransform>
 						</path>
 					</svg>
 				</div>
-			) : (
-				""
-			)}
-			{notification ? (
+			:	""}
+			{notification ?
 				<div className={`notification-container ${notification.success ? "active-green" : "active-red"}`}>
-					<p className="notification-message">{notification.message}</p>
+					<p className='notification-message'>{notification.message}</p>
 				</div>
-			) : (
-				""
-			)}
+			:	""}
 			{isTripsModalOpen && <TripsModal />}
 			{cashRegisterPopup && <CashRegister />}
 			{bankStatementImport && <BankStatementImport />}
 			{openingBalanceDatePopup && <OpeningBalanceDate />}
 			{counterNotesPopup && <CounterNotesPopup />}
 			{gstReportPopup && <GSTReport />}
-			{checkAccountingBalance ? (
+			{checkAccountingBalance ?
 				<CheckAccountingBalance
 					itemsData={checkAccountingBalance.data}
 					type={checkAccountingBalance.type}
@@ -503,13 +497,11 @@ function App() {
 						setCheckAccountingBalance(false)
 					}}
 				/>
-			) : (
-				""
-			)}
+			:	""}
 			<div className={`loading-bar ${loading || pageLoading ? "show" : ""}`}>
-				<div className="progress"></div>
+				<div className='progress'></div>
 			</div>
-			<Tooltip id="my-tooltip" style={{ zIndex: "999999999999999" }} />
+			<Tooltip id='my-tooltip' style={{ zIndex: "999999999999999" }} />
 		</div>
 	)
 }

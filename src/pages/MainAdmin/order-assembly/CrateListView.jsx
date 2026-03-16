@@ -6,6 +6,7 @@ const CrateListView = ({ uniqueCountersArr, perCounterCounts, ordersByCounter })
 			<div className='panel-body'>
 				<div className='crate-list'>
 					{uniqueCountersArr.map((c, idx) => {
+						console.log(c.crateSerialNumber)
 						const bp = perCounterCounts.get(c.uuid) || { b: 0, p: 0 }
 						const chips = ordersByCounter.get(c.uuid) || []
 						return (
@@ -13,7 +14,10 @@ const CrateListView = ({ uniqueCountersArr, perCounterCounts, ordersByCounter })
 								<div className='crate-tube'>
 									<div style={{ overflow: "auto" }}>
 										<div className='crate-text'>
-											{idx + 1}. {c.title}
+											{c?.crateSerialNumber && c?.crateSerialNumber >= 0 ?
+												c?.crateSerialNumber
+											:	idx + 1}
+											. {c.title}
 										</div>
 										<div className='crate-orders'>
 											{chips.map((o) => (

@@ -25,10 +25,7 @@ const AssemblyHeader = ({
 	const headerExtraWidth = mode === ASSEMBLY_MODES.DEVICE ? "320px" : "180px"
 
 	return (
-		<div
-			className='mobile-assembly-header'
-			style={{ borderBottom: "1px solid #e5e7eb", background: "#ffffff" }}
-		>
+		<div className='mobile-assembly-header' style={{ borderBottom: "1px solid #e5e7eb", background: "#ffffff" }}>
 			<div style={{ width: "100vw", maxWidth: "500px", overflow: "auto" }}>
 				<div
 					style={{
@@ -50,7 +47,13 @@ const AssemblyHeader = ({
 						<button
 							type='button'
 							onClick={handleClose}
-							style={{ color: "#DC2626", fontWeight: 600, fontSize: 14, border: "none", background: "transparent" }}
+							style={{
+								color: "#DC2626",
+								fontWeight: 600,
+								fontSize: 14,
+								border: "none",
+								background: "transparent"
+							}}
 						>
 							Close
 						</button>
@@ -70,11 +73,15 @@ const AssemblyHeader = ({
 												gap: 6
 											}}
 										>
-											<span>{apiLoading ? "Updating Devices" : `Retrying ${deviceCallStatus?.retrying?.length}`}</span>
+											<span>
+												{apiLoading ?
+													"Updating Devices"
+												:	`Retrying ${deviceCallStatus?.retrying?.length}`}
+											</span>
 											<span className='loader x2-small' style={{ borderColor: "#B45309" }} />
 										</span>
 									)}
-									{buffer?.length > 0 && (
+									{buffer?.size > 0 && (
 										<span
 											style={{
 												fontSize: 14,
@@ -84,7 +91,7 @@ const AssemblyHeader = ({
 												borderRadius: 6
 											}}
 										>
-											{buffer?.length} pending
+											{buffer?.size} pending
 										</span>
 									)}
 									<button
@@ -126,7 +133,9 @@ const AssemblyHeader = ({
 									padding: "6px 15px",
 									border: "none",
 									textTransform: "capitalize",
-									...(mode === val ? { background: "#10B981", color: "#fff" } : { background: "#dddddd" })
+									...(mode === val ?
+										{ background: "#10B981", color: "#fff" }
+									:	{ background: "#dddddd" })
 								}}
 								onClick={() => setMode(val)}
 							>
@@ -180,7 +189,9 @@ const AssemblyHeader = ({
 					className={"assembly-icon-button " + (isSoundOn ? "enabled" : "")}
 					onClick={() => setIsSoundOn((i) => !i)}
 				>
-					{isSoundOn ? <IoVolumeHigh size={22} /> : <IoVolumeMuteOutline size={22} />}
+					{isSoundOn ?
+						<IoVolumeHigh size={22} />
+					:	<IoVolumeMuteOutline size={22} />}
 				</button>
 			</div>
 		</div>
