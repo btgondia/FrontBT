@@ -10,6 +10,7 @@ import CrateListView from "./order-assembly/CrateListView"
 import ItemSummaryView from "./order-assembly/ItemSummaryView"
 import DeviceErrorModal from "./order-assembly/DeviceErrorModal"
 
+let controller
 const OrderAssembly = () => {
 	const navigate = useNavigate()
 
@@ -37,27 +38,18 @@ const OrderAssembly = () => {
 	} = useOrderAssemblyLogic()
 
 	const { deviceBases, deviceCallStatus, apiLoading, setDeviceCallStatus, send } = useDeviceIntegration(
-		mode,
 		uniqueCountersArr,
-		perCounterCounts,
-		selectedKey
+		ordersByCounter,
+		perCounterCounts
 	)
 
-	// Device integration triggers (primary updates for selection changes)
-	useEffect(() => {
-		if (mode !== ASSEMBLY_MODES.DEVICE) return
-		if (!uniqueCountersArr.length || !selectedKey) return
-
-		const controller = new AbortController()
-		send(controller, ordersByCounter, orders)
-		return () => controller.abort()
-	}, [uniqueCountersArr, perCounterCounts, deviceBases, selectedKey, mode, send, ordersByCounter, orders])
-
 	const handleAction = (key, status) => {
-		const { deviceMessage } = applyStatusForKey(key, status)
-		if (mode === ASSEMBLY_MODES.DEVICE) {
-			const controller = new AbortController()
-			send(controller, ordersByCounter, orders, deviceMessage)
+		const { shouldCallDevices, deviceMessage } = applyStatusForKey(key, status)
+		
+		if (shouldCallDevices && mode === ASSEMBLY_MODES.DEVICE) {
+			if (controller) controller.abort()
+			controller = new AbortController()
+			send(controller, orders, key, deviceMessage)
 		}
 	}
 
@@ -67,11 +59,7 @@ const OrderAssembly = () => {
 
 	const onBarcodeScan = (code) => {
 		const item = itemsMaster?.find((i) => i.barcode?.includes?.(code))
-		if (item?.item_uuid) {
-			handleToggleComplete(item.item_uuid)
-		} else {
-			alert(`Item not found for barcode ${code}`)
-		}
+		handleToggleComplete(item?.item_uuid || null)
 	}
 
 	const handleClose = () => {
@@ -115,6 +103,7 @@ const OrderAssembly = () => {
 						uniqueCountersArr={uniqueCountersArr}
 						perCounterCounts={perCounterCounts}
 						ordersByCounter={ordersByCounter}
+						selectedKey={selectedKey}
 					/>
 				:	<ItemSummaryView
 						filtered={filtered}

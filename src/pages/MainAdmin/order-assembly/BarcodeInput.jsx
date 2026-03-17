@@ -18,8 +18,10 @@ export function useBarcodeScanner(onScan, enabled = true) {
 			// If delay is too large → human typing → reset
 			if (delta > 50) {
 				buffer.current = ""
+			} else {
+				e.preventDefault()
+        		e.stopPropagation()
 			}
-
 
 			if (e.key === "Enter") {
 				if (buffer.current.length > 3) {

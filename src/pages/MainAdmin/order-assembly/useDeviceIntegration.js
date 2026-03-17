@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import axios from "axios"
-import { ASSEMBLY_DEVICE_COUNT, ASSEMBLY_MODES, DEVICE_MESSAGE } from "./constants"
+import { ASSEMBLY_DEVICE_COUNT, ASSEMBLY_MODES, DEVICE_MESSAGE, ITEM_STATUS } from "./constants"
 
-export const useDeviceIntegration = (mode, uniqueCountersArr, perCounterCounts, selectedItemKey) => {
+export const useDeviceIntegration = (uniqueCountersArr, ordersByCounter, perCounterCounts) => {
 	const [deviceBases, setDeviceBases] = useState([])
 	const [deviceCallStatus, setDeviceCallStatus] = useState({})
 	const [apiLoading, setApiLoading] = useState(false)
@@ -82,56 +82,53 @@ export const useDeviceIntegration = (mode, uniqueCountersArr, perCounterCounts, 
 		}
 	}
 
-	const getCounterDoneStatus = (counterId, currItemId, ordersByCounter, orders) => {
+	const getCounterDoneStatus = (counterId, currItemId, orders) => {
 		const counterOrders = ordersByCounter.get(counterId)
 		const hasUnProcessedItems = counterOrders?.some((i) => {
-			const order = orders.find((o) =>
-				[o.invoice_number.split("-")[1], o.order_uuid].includes(i.number.toString())
-			)
+			const order = orders.find((o) => o.order_uuid === i.order_uuid)
 			return order?.item_details?.some(
-				(item) => (item.status !== 1 && item.status !== 3) || item.item_uuid === currItemId
+				(item) =>
+					(item.status !== ITEM_STATUS.COMPLETE && item.status !== ITEM_STATUS.CANCEL) ||
+					item.item_uuid === currItemId
 			)
 		})
 		return !hasUnProcessedItems
 	}
 
-	const send = useCallback(
-		async (controller, ordersByCounter, orders, overrideMessage) => {
-			setApiLoading(true)
-			setDeviceCallStatus({})
-			try {
-				const calls = uniqueCountersArr.map(async (c, idx) => {
-					const base = deviceBases[idx]
-					if (!base || doneCounterIds?.[c.uuid]) return null
+	const send = async (controller, orders, selectedItemKey, overrideMessage) => {
+		setApiLoading(true)
+		setDeviceCallStatus({})
+		try {
+			const calls = uniqueCountersArr.map(async (c, idx) => {
+				const base = deviceBases[idx]
+				if (!base || doneCounterIds?.[c.uuid]) return null
 
-					let message = overrideMessage
-					const isCounterDone = getCounterDoneStatus(c.uuid, selectedItemKey, ordersByCounter, orders)
+				let message = overrideMessage
+				const isCounterDone = getCounterDoneStatus(c.uuid, selectedItemKey, orders)
 
-					if (isCounterDone) {
-						message = DEVICE_MESSAGE.DONE
-					} else if (!message) {
-						message = DEVICE_MESSAGE.formatMessage(perCounterCounts.get(c.uuid))
-					}
-
-					const finalUrl = `${base}val=${encodeURIComponent(message)}`
-					const id = Date.now().toString() + idx
-					await fetchWithRetry(finalUrl, 3, controller?.signal, { id, idx, message })
-					return isCounterDone ? { [c.uuid]: true } : null
-				})
-
-				const results = await Promise.all(calls)
-				const newDoneIds = results.reduce((acc, res) => (res ? { ...acc, ...res } : acc), {})
-				if (Object.keys(newDoneIds).length > 0) {
-					setDoneCounterIds((prev) => ({ ...prev, ...newDoneIds }))
+				if (isCounterDone) {
+					message = DEVICE_MESSAGE.DONE
+				} else if (!message) {
+					message = DEVICE_MESSAGE.formatMessage(perCounterCounts.get(selectedItemKey).get(c.uuid))
 				}
-			} catch (err) {
-				console.error(err)
-			} finally {
-				setApiLoading(false)
+
+				const finalUrl = `${base}val=${encodeURIComponent(message)}`
+				const id = Date.now().toString() + idx
+				await fetchWithRetry(finalUrl, 3, controller?.signal, { id, idx, message })
+				return isCounterDone ? { [c.uuid]: true } : null
+			})
+
+			const results = await Promise.all(calls)
+			const newDoneIds = results.reduce((acc, res) => (res ? { ...acc, ...res } : acc), {})
+			if (Object.keys(newDoneIds).length > 0) {
+				setDoneCounterIds((prev) => ({ ...prev, ...newDoneIds }))
 			}
-		},
-		[uniqueCountersArr, deviceBases, doneCounterIds, selectedItemKey, perCounterCounts]
-	)
+		} catch (err) {
+			console.error(err)
+		} finally {
+			setApiLoading(false)
+		}
+	}
 
 	return {
 		deviceBases,

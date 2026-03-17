@@ -158,6 +158,7 @@ function App() {
 			controller.abort()
 		}
 	}, [userType])
+
 	useEffect(() => {
 		if (+userType) {
 			let time = +localStorage.getItem("indexed_time") || ""

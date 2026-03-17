@@ -1,13 +1,13 @@
 import React from "react"
 
-const CrateListView = ({ uniqueCountersArr, perCounterCounts, ordersByCounter }) => {
+const CrateListView = ({ uniqueCountersArr, perCounterCounts, ordersByCounter, selectedKey }) => {
 	return (
 		<section className='panel'>
 			<div className='panel-body'>
 				<div className='crate-list'>
-					{uniqueCountersArr.map((c, idx) => {
+					{uniqueCountersArr?.map((c, idx) => {
 						console.log(c.crateSerialNumber)
-						const bp = perCounterCounts.get(c.uuid) || { b: 0, p: 0 }
+						const bp = perCounterCounts?.get(selectedKey)?.get(c.uuid) || { b: 0, p: 0 }
 						const chips = ordersByCounter.get(c.uuid) || []
 						return (
 							<div key={c.uuid} className='crate-item'>

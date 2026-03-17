@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react"
 import axios from "axios"
 import { Billing } from "../../../Apis/functions"
-import { ITEM_STATUS, VOICE_MESSAGE, ASSEMBLY_MODES, MOBILE_ASSEMBLY_TABS } from "./constants"
+import { ITEM_STATUS, VOICE_MESSAGE, ASSEMBLY_MODES, MOBILE_ASSEMBLY_TABS, DEVICE_MESSAGE } from "./constants"
 import {
 	announce,
 	norm,
@@ -85,7 +85,6 @@ export const useOrderAssemblyLogic = () => {
 	}, [])
 
 	function arrangeCounters(arr) {
-		console.log(arr)
 		const placed = []
 		const remaining = []
 
@@ -124,96 +123,66 @@ export const useOrderAssemblyLogic = () => {
 			.filter((g) => g.rows.length > 0)
 	}, [grouped, search])
 
-	const uniqueCountersArr = useMemo(() => {
-		const map = new Map()
-		for (const o of orders) {
-			const id = o?.counter_uuid
-			if (!id) continue
-			const fromIdx = counterIndex.get(id)
-			const title = fromIdx?.title || o.counter_title || "Unnamed Counter"
-			const sortOrder = nnum(fromIdx?.sort_order ?? o.counter_sort_order, 9999)
-			const caretSN = o.crateSerialNumber || null
-			if (!map.has(id)) {
-				map.set(id, { uuid: id, title, sort_order: sortOrder, crateSerialNumber: caretSN })
-			} else {
-				const existing = map.get(id)
-				if (!existing.crateSerialNumber && caretSN) existing.crateSerialNumber = caretSN
-			}
-		}
-		return arrangeCounters(Array.from(map.values()))
-	}, [orders, counterIndex])
+	const [perCounterCounts, ordersByCounter, uniqueCountersArr] = useMemo(() => {
+		const counterQtyMap = new Map()
+		const counterOrdersMap = new Map()
+		const counterUniqueMap = new Map()
 
-	const ordersByCounter = useMemo(() => {
-		const out = new Map()
-		for (const o of orders) {
-			const cid = o?.counter_uuid
-			if (!cid) continue
-			const list = out.get(cid) || []
-			const num = o?.invoice_number || o?.order_uuid || ""
-			const total = getOrderGrand(o)
-			list.push({ number: String(num).replace(/^B-?/i, ""), total })
-			out.set(cid, list)
-		}
-		for (const list of out.values()) {
-			list.sort((a, b) => nnum(a.number) - nnum(b.number))
-		}
-		return out
-	}, [orders])
-
-	const selectedRowMeta = useMemo(() => {
-		for (const g of filtered) {
-			for (const r of g.rows) {
-				if (r.key === selectedKey) return { key: r.key, name: norm(r.name), mrp: nnum(r.mrp) }
-			}
-		}
-		return { key: null, name: "", mrp: 0 }
-	}, [filtered, selectedKey])
-
-	const selectedConversion = useMemo(() => {
-		if (!selectedRowMeta.key && !selectedRowMeta.name) return 1
-		const fromIdx = selectedRowMeta.key ? itemsIdx.get(selectedRowMeta.key) : null
-		if (fromIdx && fromIdx.conversion > 0) return fromIdx.conversion
-		const arr = Array.isArray(itemsMaster) ? itemsMaster : []
-		const match = arr.find((it) => {
-			const nm = norm(it?.item_title || it?.pronounce || it?.name || it?.title)
-			const mrp = nnum(it?.mrp ?? it?.MRP ?? it?.price_mrp ?? it?.Price_MRP)
-			return nm === selectedRowMeta.name && mrp === selectedRowMeta.mrp
-		})
-		return nnum(match?.conversion || 1, 1)
-	}, [selectedRowMeta, itemsIdx, itemsMaster])
-
-	const perCounterCounts = useMemo(() => {
-		const intermediate = new Map()
-		if (!selectedRowMeta.key && !selectedRowMeta.name) return intermediate
-		const conv = selectedConversion > 0 ? selectedConversion : 1
+		if (!orders?.[0]) return counterQtyMap
 
 		for (const o of orders) {
-			const cid = o?.counter_uuid
-			if (!cid) continue
-			let acc = intermediate.get(cid) || { boxTotal: 0, pcsTotal: 0 }
-			const lines = o?.item_details || []
-			for (const ln of lines) {
-				if (Object.values(ITEM_STATUS).slice(1).includes(+ln?.status)) continue
-				const id = String(ln?.item_uuid_v2 || ln?.item_uuid || ln?.item_code || "")
-				const nm = norm(getName(ln, itemsIdx))
-				const mrp = nnum(getMRP(ln, itemsIdx))
-				if (
-					(id && id === selectedRowMeta.key) ||
-					(nm === selectedRowMeta.name && mrp === selectedRowMeta.mrp)
-				) {
-					acc.boxTotal += nnum(ln.b)
-					acc.pcsTotal += nnum(ln.p)
+			const cId = o?.counter_uuid
+			if (!cId) continue
+
+			// counterOrdersMap
+			const orderIds = counterOrdersMap.get(cId) || []
+			orderIds.push({
+				order_uuid: o?.order_uuid,
+				number: o?.invoice_number?.split("-")?.[1],
+				total: getOrderGrand(o)
+			})
+			counterOrdersMap.set(cId, orderIds)
+
+			// counterUniqueMap
+			if (counterIndex?.size) {
+				const cIdx = counterIndex.get(cId)
+				const caretSN = o.crateSerialNumber || null
+				if (!counterUniqueMap.has(cId)) {
+					counterUniqueMap.set(cId, {
+						uuid: cId,
+						title: cIdx?.title || o.counter_title || "Unnamed Counter",
+						sort_order: nnum(cIdx?.sort_order ?? o.counter_sort_order, 9999),
+						crateSerialNumber: caretSN
+					})
+				} else {
+					const existing = counterUniqueMap.get(cId)
+					if (!existing.crateSerialNumber && caretSN) existing.crateSerialNumber = caretSN
 				}
 			}
-			intermediate.set(cid, acc)
+
+			// counterQtyMap
+			if (!itemsIdx?.size) continue
+			for (const i of o?.item_details || []) {
+				if (Object.values(ITEM_STATUS).slice(1).includes(+i?.status)) continue
+
+				const iMap = counterQtyMap.get(i.item_uuid) || new Map()
+				const cData = iMap.get(cId) || {
+					b: 0,
+					p: 0
+				}
+
+				cData.b += nnum(i.b)
+				cData.p += nnum(i.p)
+
+				const conv = +itemsIdx.get(i.item_uuid)?.conversion
+				const pTotol = cData.b * conv + cData.p
+				iMap.set(cId, { b: Math.floor(pTotol / conv), p: pTotol % conv })
+				counterQtyMap.set(i.item_uuid, iMap)
+			}
 		}
-		const result = new Map()
-		for (const [cid, acc] of intermediate.entries()) {
-			const totalPieces = acc.boxTotal * conv + acc.pcsTotal
-			result.set(cid, { b: Math.floor(totalPieces / conv), p: totalPieces % conv })
-		}
-		return result
-	}, [orders, itemsIdx, selectedRowMeta, selectedConversion])
+
+		return [counterQtyMap, counterOrdersMap, arrangeCounters(Array.from(counterUniqueMap.values()))]
+	}, [orders, itemsIdx, counterIndex])
 
 	// Actions
 	const queueAction = useCallback(
@@ -322,6 +291,7 @@ export const useOrderAssemblyLogic = () => {
 				)
 				const merged = sessionFull.map((o) => changedByUUID.get(o.order_uuid) || o)
 				writeFullOrdersToSession(merged)
+				setOrders(merged)
 				setBuffer([])
 				alert(`Saved ${changedDocs.length} order(s).`)
 			}
@@ -334,18 +304,20 @@ export const useOrderAssemblyLogic = () => {
 	}
 
 	const applyStatusForKey = (key, expectedStatus) => {
+		console.log(key ? itemsMaster?.find((i) => i.item_uuid === key)?.barcode : "")
+
 		const currentStatus = itemStatus[key] || ITEM_STATUS.IN_PROCESSING
 		const nextStatus = currentStatus === expectedStatus ? ITEM_STATUS.IN_PROCESSING : expectedStatus
 		let deviceMessage, voiceMessage
 
 		if (!key) {
-			deviceMessage = VOICE_MESSAGE.NOT_FOUND
+			deviceMessage = DEVICE_MESSAGE.NOT_FOUND
 			voiceMessage = VOICE_MESSAGE.NOT_FOUND
 		} else if (nextStatus === ITEM_STATUS.IN_PROCESSING && currentStatus === ITEM_STATUS.COMPLETE) {
-			deviceMessage = VOICE_MESSAGE.UNTICK
+			deviceMessage = DEVICE_MESSAGE.UNTICK
 			voiceMessage = VOICE_MESSAGE.UNTICK
 		} else if (nextStatus === ITEM_STATUS.CANCEL) {
-			deviceMessage = VOICE_MESSAGE.CANCEL
+			deviceMessage = DEVICE_MESSAGE.CANCEL
 		} else if (nextStatus === ITEM_STATUS.COMPLETE) {
 			const itemSummary = grouped
 				.find((c) => c.category === catIdx.get(itemsIdx.get(key).category_uuid)?.title)
@@ -366,14 +338,17 @@ export const useOrderAssemblyLogic = () => {
 				timestamp: new Date().toJSON(),
 				user_uuid: localStorage.getItem("user_uuid") || "UNKNOWN_USER"
 			})
+
+			queueAction(key, nextStatus)
+			setItemStatus((prev) => ({ ...prev, [key]: nextStatus }))
 		}
 
 		if (voiceMessage && isSoundOn) announce(voiceMessage)
-		setItemStatus((prev) => ({ ...prev, [key]: nextStatus }))
 		setSelectedKey(key)
-		queueAction(key, nextStatus)
 
-		return { nextStatus, deviceMessage, voiceMessage }
+		const shouldCallDevices = ![currentStatus, nextStatus].includes(ITEM_STATUS.HOLD)
+
+		return { deviceMessage, shouldCallDevices }
 	}
 
 	return {
