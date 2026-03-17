@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect } from "react"
 import axios from "axios"
-import { ASSEMBLY_DEVICE_COUNT, ASSEMBLY_MODES, DEVICE_MESSAGE, ITEM_STATUS } from "./constants"
+import { ASSEMBLY_DEVICE_COUNT, DEVICE_MESSAGE, ITEM_STATUS } from "./constants"
 
 export const useDeviceIntegration = (uniqueCountersArr, ordersByCounter, perCounterCounts) => {
 	const [deviceBases, setDeviceBases] = useState([])

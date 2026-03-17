@@ -4,17 +4,13 @@ import { Billing } from "../../../Apis/functions"
 import { ITEM_STATUS, VOICE_MESSAGE, ASSEMBLY_MODES, MOBILE_ASSEMBLY_TABS, DEVICE_MESSAGE } from "./constants"
 import {
 	announce,
-	norm,
 	nnum,
-	getOrderGrand,
 	buildItemsIndex,
 	buildCategoryIndex,
 	computeItemSummary,
 	loadFullOrdersFromSession,
 	writeFullOrdersToSession,
 	allDoneOrCancelled,
-	getName,
-	getMRP
 } from "./helpers"
 
 export const useOrderAssemblyLogic = () => {
@@ -139,7 +135,7 @@ export const useOrderAssemblyLogic = () => {
 			orderIds.push({
 				order_uuid: o?.order_uuid,
 				number: o?.invoice_number?.split("-")?.[1],
-				total: getOrderGrand(o)
+				total: +o?.order_grandtotal || 0
 			})
 			counterOrdersMap.set(cId, orderIds)
 
@@ -303,31 +299,50 @@ export const useOrderAssemblyLogic = () => {
 		}
 	}
 
+	const getDeviceMessage = (key, currentStatus, nextStatus) => {
+		if (!key) {
+			return DEVICE_MESSAGE.NOT_FOUND
+		}
+
+		if (nextStatus === ITEM_STATUS.IN_PROCESSING && currentStatus === ITEM_STATUS.COMPLETE) {
+			return DEVICE_MESSAGE.UNTICK
+		}
+
+		if (nextStatus === ITEM_STATUS.CANCEL) {
+			return DEVICE_MESSAGE.CANCEL
+		}
+	}
+
+	const getVoiceMessage = (key, currentStatus, nextStatus) => {
+		if (!key) {
+			return VOICE_MESSAGE.NOT_FOUND
+		}
+
+		if (nextStatus === ITEM_STATUS.IN_PROCESSING && currentStatus === ITEM_STATUS.COMPLETE) {
+			return VOICE_MESSAGE.UNTICK
+		}
+
+		if (nextStatus === ITEM_STATUS.COMPLETE) {
+			const itemSummary = grouped
+				.find((c) => c.category === catIdx.get(itemsIdx.get(key).category_uuid)?.title)
+				?.rows?.find((r) => r.key === key)
+
+			if (!itemSummary?.totalB && !itemSummary?.totalP) return VOICE_MESSAGE.ZERO
+			return VOICE_MESSAGE.formatMessage(itemSummary.totalB, itemSummary.totalP)
+		}
+	}
+
 	const applyStatusForKey = (key, expectedStatus) => {
 		console.log(key ? itemsMaster?.find((i) => i.item_uuid === key)?.barcode : "")
 
 		const currentStatus = itemStatus[key] || ITEM_STATUS.IN_PROCESSING
 		const nextStatus = currentStatus === expectedStatus ? ITEM_STATUS.IN_PROCESSING : expectedStatus
-		let deviceMessage, voiceMessage
+		const shouldCallDevices = ![currentStatus, nextStatus].includes(ITEM_STATUS.HOLD)
 
-		if (!key) {
-			deviceMessage = DEVICE_MESSAGE.NOT_FOUND
-			voiceMessage = VOICE_MESSAGE.NOT_FOUND
-		} else if (nextStatus === ITEM_STATUS.IN_PROCESSING && currentStatus === ITEM_STATUS.COMPLETE) {
-			deviceMessage = DEVICE_MESSAGE.UNTICK
-			voiceMessage = VOICE_MESSAGE.UNTICK
-		} else if (nextStatus === ITEM_STATUS.CANCEL) {
-			deviceMessage = DEVICE_MESSAGE.CANCEL
-		} else if (nextStatus === ITEM_STATUS.COMPLETE) {
-			const itemSummary = grouped
-				.find((c) => c.category === catIdx.get(itemsIdx.get(key).category_uuid)?.title)
-				?.rows?.find((r) => r.key === key)
-			voiceMessage =
-				itemSummary?.totalB > 0 || itemSummary?.totalP > 0 ?
-					VOICE_MESSAGE.formatMessage(itemSummary.totalB, itemSummary.totalP)
-				:	VOICE_MESSAGE.ZERO
-		}
+		const deviceMessage = getDeviceMessage(key, currentStatus, nextStatus)
+		const voiceMessage = getVoiceMessage(key, currentStatus, nextStatus)
 
+		if (voiceMessage && isSoundOn) announce(voiceMessage)
 		if (key) {
 			axios.patch("/orders/item-assembly-log", {
 				orderIds: orders
@@ -343,10 +358,7 @@ export const useOrderAssemblyLogic = () => {
 			setItemStatus((prev) => ({ ...prev, [key]: nextStatus }))
 		}
 
-		if (voiceMessage && isSoundOn) announce(voiceMessage)
 		setSelectedKey(key)
-
-		const shouldCallDevices = ![currentStatus, nextStatus].includes(ITEM_STATUS.HOLD)
 
 		return { deviceMessage, shouldCallDevices }
 	}

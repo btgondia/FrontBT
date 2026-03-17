@@ -20,32 +20,22 @@ export function announce(text) {
 
 export const norm = (s) => String(s ?? "").trim()
 export const nnum = (v, d = 0) => (isNaN(+v) ? d : +v)
-export const lineItemId = (ln) => String(ln?.item_uuid_v2 || ln?.item_uuid || ln?.item_code || ln?.ITEM_CODE || "")
 
-export const getOrderGrand = (o) => {
-	const candidates = [o?.order_grandtotal, o?.grand_total, o?.order_grand_total, o?.grandTotal, o?.total_amount]
-	for (const v of candidates) {
-		const n = +v
-		if (Number.isFinite(n) && n > 0) return n
-	}
-	return 0
-}
-
-export const sumOrdersTotal = (orders = []) => orders.reduce((acc, o) => acc + getOrderGrand(o), 0)
+export const sumOrdersTotal = (orders = []) => orders.reduce((acc, o) => acc + (+o?.order_grandtotal || 0), 0)
 
 export const buildItemsIndex = (items = []) => {
 	const idx = new Map()
 	for (let index = 0; index < items.length; index++) {
 		const it = items[index]
-		const key = it?.item_uuid || it?._id
+		const key = it?.item_uuid
 		if (!key) continue
 		idx.set(String(key), {
-			name: norm(it.item_title) || norm(it.pronounce) || norm(it.name) || norm(it.title),
-			mrp: nnum(it.mrp ?? it.MRP ?? it.price_mrp ?? it.Price_MRP),
-			category_uuid: norm(it.category_uuid || it.cat_uuid || ""),
+			name: norm(it.item_title),
+			mrp: nnum(it.mrp),
+			category_uuid: norm(it.category_uuid),
 			// pcs per box (conversion)
 			conversion: nnum(
-				it.conversion ?? it.CONVERSION ?? it.Conv ?? it.conv ?? it.pcs_in_box ?? it.pieces_in_box,
+				it.conversion,
 				1
 			)
 		})
@@ -56,10 +46,10 @@ export const buildItemsIndex = (items = []) => {
 export const buildCategoryIndex = (cats = []) => {
 	const idx = new Map()
 	for (const c of cats) {
-		const uuid = norm(c.category_uuid || c.uuid || c._id || c.IDENTIFIER || c.id)
+		const uuid = norm(c.category_uuid)
 		if (!uuid) continue
 		idx.set(uuid, {
-			title: norm(c.category_title || c.title || c.name || "Uncategorized"),
+			title: norm(c.category_title || "Uncategorized"),
 			sort_order: typeof c.sort_order === "number" ? c.sort_order : nnum(c.sort_order, 9999)
 		})
 	}
@@ -67,28 +57,28 @@ export const buildCategoryIndex = (cats = []) => {
 }
 
 export const getName = (ln, itemsIdx) => {
-	const fromLine = ln.item_title || ln.item_name || ln.title || ln.name || ln.Item || ln.item
+	const fromLine = ln.item_title
 	if (fromLine) return norm(fromLine)
-	const byUuid = itemsIdx.get(lineItemId(ln))
+	const byUuid = itemsIdx.get(ln?.item_uuid)
 	return byUuid?.name || ""
 }
 
 export const getMRP = (ln, itemsIdx) => {
-	const fromLine = ln.mrp ?? ln.MRP ?? ln.price_mrp ?? ln.Price_MRP
+	const fromLine = ln.mrp
 	if (!isNaN(+fromLine)) return +fromLine
-	const byUuid = itemsIdx.get(lineItemId(ln))
+	const byUuid = itemsIdx.get(ln?.item_uuid)
 	return byUuid?.mrp || 0
 }
 
 export const getConversion = (ln, itemsIdx) => {
-	const byUuid = itemsIdx.get(lineItemId(ln))
+	const byUuid = itemsIdx.get(ln?.item_uuid)
 	return byUuid?.conversion ?? null
 }
 
 export const getCategoryMeta = (ln, itemsIdx, catIdx) => {
-	const fromLine = norm(ln.category_uuid || ln.cat_uuid || "")
+	const fromLine = norm(ln.category_uuid)
 	if (fromLine && catIdx.has(fromLine)) return catIdx.get(fromLine)
-	const fromItem = itemsIdx.get(lineItemId(ln))?.category_uuid
+	const fromItem = itemsIdx.get(ln?.item_uuid)?.category_uuid
 	if (fromItem && catIdx.has(fromItem)) return catIdx.get(fromItem)
 	return { title: "Uncategorized", sort_order: 999999 }
 }
@@ -97,12 +87,12 @@ export function computeItemSummary(orders = [], itemsIdx, catIdx) {
 	const catMap = new Map()
 	for (const o of orders) {
 		const lines = Array.isArray(o?.item_details) ? o.item_details : []
-		const orderKey = o?.order_uuid || o?.invoice_number || Math.random().toString(36).slice(2)
+		const orderKey = o?.order_uuid
 		for (const ln of lines) {
 			const s = +ln?.status
 			if (Object.values(ITEM_STATUS).slice(1).includes(s)) continue
 
-			const itemKey = String(lineItemId(ln) || getName(ln, itemsIdx)).trim()
+			const itemKey = ln?.item_uuid
 			if (!itemKey) continue
 
 			const name = getName(ln, itemsIdx)
@@ -197,5 +187,5 @@ export const allDoneOrCancelled = (item_details) =>
 	item_details.length > 0 &&
 	item_details.every((ln) => {
 		const s = +ln?.status
-		return s === 1 || s === 3
+		return s === ITEM_STATUS.COMPLETE || s === ITEM_STATUS.CANCEL
 	})
