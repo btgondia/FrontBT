@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react"
 import axios from "axios"
-import { Billing } from "../../../Apis/functions"
+import { Billing } from "../../Apis/functions"
 import { ITEM_STATUS, VOICE_MESSAGE, ASSEMBLY_MODES, MOBILE_ASSEMBLY_TABS, DEVICE_MESSAGE } from "./constants"
 import {
 	announce,
@@ -30,7 +30,7 @@ export const useOrderAssemblyLogic = () => {
 
 	// Data Fetching
 	useEffect(() => {
-		const loadCats = async () => {
+		const loadCategories = async () => {
 			try {
 				const r = await axios.get("/itemCategories/GetItemCategoryList")
 				const arr = Array.isArray(r.data?.result) ? r.data.result : r.data
@@ -59,26 +59,22 @@ export const useOrderAssemblyLogic = () => {
 			}
 		}
 
-		Promise.all([loadCounters(), loadCats()])
+		Promise.all([loadCounters(), loadCategories()])
+
+		const sessionOrders = loadFullOrdersFromSession()
+		setOrders(sessionOrders)
 	}, [])
 
 	useEffect(() => {
 		const loadItems = async () => {
-			if (!itemsMaster) {
-				try {
-					const r = await axios.post("/items/GetItemList")
-					const arr = Array.isArray(r.data?.result) ? r.data.result : r.data
-					if (Array.isArray(arr) && arr.length) setItemsMaster(arr)
-				} catch {}
-			}
+			try {
+				const r = await axios.post("/items/GetItemList")
+				const arr = Array.isArray(r.data?.result) ? r.data.result : r.data
+				if (Array.isArray(arr) && arr.length) setItemsMaster(arr)
+			} catch {}
 		}
-		loadItems()
+		if (!itemsMaster) loadItems()
 	}, [itemsMaster])
-
-	useEffect(() => {
-		const sessionOrders = loadFullOrdersFromSession()
-		setOrders(sessionOrders)
-	}, [])
 
 	function arrangeCounters(arr) {
 		const placed = []
@@ -103,9 +99,9 @@ export const useOrderAssemblyLogic = () => {
 	}
 
 	// Calculations
-	const itemsIdx = useMemo(() => buildItemsIndex(itemsMaster || []), [itemsMaster])
-	const catIdx = useMemo(() => buildCategoryIndex(categoriesMaster || []), [categoriesMaster])
-	const grouped = useMemo(() => computeItemSummary(orders, itemsIdx, catIdx), [orders, itemsIdx, catIdx])
+	const itemIdx = useMemo(() => buildItemsIndex(itemsMaster || []), [itemsMaster])
+	const categoryIdx = useMemo(() => buildCategoryIndex(categoriesMaster || []), [categoriesMaster])
+	const grouped = useMemo(() => computeItemSummary(orders, itemIdx, categoryIdx), [orders, itemIdx, categoryIdx])
 
 	const filtered = useMemo(() => {
 		if (!search.trim()) return grouped
@@ -134,7 +130,7 @@ export const useOrderAssemblyLogic = () => {
 			const orderIds = counterOrdersMap.get(cId) || []
 			orderIds.push({
 				order_uuid: o?.order_uuid,
-				number: o?.invoice_number?.split("-")?.[1],
+				number: o?.invoice_number,
 				total: +o?.order_grandtotal || 0
 			})
 			counterOrdersMap.set(cId, orderIds)
@@ -157,7 +153,7 @@ export const useOrderAssemblyLogic = () => {
 			}
 
 			// counterQtyMap
-			if (!itemsIdx?.size) continue
+			if (!itemIdx?.size) continue
 			for (const i of o?.item_details || []) {
 				if (Object.values(ITEM_STATUS).slice(1).includes(+i?.status)) continue
 
@@ -170,7 +166,7 @@ export const useOrderAssemblyLogic = () => {
 				cData.b += nnum(i.b)
 				cData.p += nnum(i.p)
 
-				const conv = +itemsIdx.get(i.item_uuid)?.conversion
+				const conv = +itemIdx.get(i.item_uuid)?.conversion
 				const pTotol = cData.b * conv + cData.p
 				iMap.set(cId, { b: Math.floor(pTotol / conv), p: pTotol % conv })
 				counterQtyMap.set(i.item_uuid, iMap)
@@ -178,7 +174,7 @@ export const useOrderAssemblyLogic = () => {
 		}
 
 		return [counterQtyMap, counterOrdersMap, arrangeCounters(Array.from(counterUniqueMap.values()))]
-	}, [orders, itemsIdx, counterIndex])
+	}, [orders, itemIdx, counterIndex])
 
 	// Actions
 	const queueAction = useCallback(
@@ -324,7 +320,7 @@ export const useOrderAssemblyLogic = () => {
 
 		if (nextStatus === ITEM_STATUS.COMPLETE) {
 			const itemSummary = grouped
-				.find((c) => c.category === catIdx.get(itemsIdx.get(key).category_uuid)?.title)
+				.find((c) => c.category === categoryIdx.get(itemIdx.get(key).category_uuid)?.title)
 				?.rows?.find((r) => r.key === key)
 
 			if (!itemSummary?.totalB && !itemSummary?.totalP) return VOICE_MESSAGE.ZERO

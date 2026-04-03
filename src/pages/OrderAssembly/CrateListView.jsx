@@ -22,7 +22,7 @@ const CrateListView = ({ uniqueCountersArr, perCounterCounts, ordersByCounter, s
 										<div className='crate-orders'>
 											{chips.map((o) => (
 												<span key={o.number} className='chip'>
-													B-{o.number} • ₹{Math.round(o.total)}
+													{o.number} • ₹{Math.round(o.total)}
 												</span>
 											))}
 										</div>

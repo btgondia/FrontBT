@@ -1,4 +1,4 @@
-import { pluralize } from "../../../utils/helperFunctions"
+import { pluralize } from "../../utils/helperFunctions"
 
 export const ACTION_TRIGGER_SOURCE = {
 	BARCODE: "barcode",

@@ -1,14 +1,13 @@
 import React from "react"
 import { useNavigate } from "react-router-dom"
-import "./style.css"
 import Loader from "../../components/Loader"
-import { ASSEMBLY_MODES, ITEM_STATUS, MOBILE_ASSEMBLY_TABS } from "./order-assembly/constants"
-import { useOrderAssemblyLogic } from "./order-assembly/useOrderAssemblyLogic"
-import { useDeviceIntegration } from "./order-assembly/useDeviceIntegration"
-import AssemblyHeader from "./order-assembly/AssemblyHeader"
-import CrateListView from "./order-assembly/CrateListView"
-import ItemSummaryView from "./order-assembly/ItemSummaryView"
-import DeviceErrorModal from "./order-assembly/DeviceErrorModal"
+import { ASSEMBLY_MODES, ITEM_STATUS, MOBILE_ASSEMBLY_TABS } from "./constants"
+import { useOrderAssemblyLogic } from "./useOrderAssemblyLogic"
+import { useDeviceIntegration } from "./useDeviceIntegration"
+import AssemblyHeader from "./AssemblyHeader"
+import CrateListView from "./CrateListView"
+import ItemSummaryView from "./ItemSummaryView"
+import DeviceErrorModal from "./DeviceErrorModal"
 
 let controller
 const OrderAssembly = () => {

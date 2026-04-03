@@ -50,7 +50,7 @@ import { RiPercentFill } from "react-icons/ri";
 import { IoMdCloseCircle } from "react-icons/io";
 
 import "./orderDetails.css"
-import { ITEM_STATUS_COLORS, ITEM_STATUS_LABELS } from "../pages/MainAdmin/order-assembly/constants"
+import { ITEM_STATUS_COLORS, ITEM_STATUS_LABELS } from "../pages/OrderAssembly/constants"
 
 const default_status = [
 	{ value: 0, label: "Preparing" },

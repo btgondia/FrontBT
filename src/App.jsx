@@ -12,7 +12,7 @@ import ItemsPage from "./pages/Master/Items"
 import axios from "axios"
 import AutoIncreaseQuantity from "./pages/others/AutoIncreaseQuantity"
 import AutoIncreaseItem from "./pages/others/AutoIncreaseItem"
-import OrderAssembly from "./pages/MainAdmin/OrderAssembly"
+import OrderAssembly from "./pages/OrderAssembly/OrderAssembly"
 import Main from "./users/Main"
 import LoginPage from "./users/LoginPage"
 import Processing from "./users/Processing"
@@ -108,10 +108,10 @@ export const server = ["https://api.btgondia.com", "https://dev.btgondia.com/api
 		1 // ! DONOT CHANGE THIS (for dev server)
 	: window.location.origin.includes("btgondia") ?
 		0 // ! DONOT CHANGE THIS (for prod server)
-	:	2 // * for local env (for local server)
+	:	1 // * for local env (for local server)
 ]
 
-export let Version = 424 // ? increment version count for each deployment rather than each count
+export let Version = 425 // ? increment version count for each deployment rather than each count
 
 function App() {
 	const [userType, setUserType] = useState(sessionStorage.getItem("userType"))

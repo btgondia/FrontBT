@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { MdCheckCircle, MdClose } from 'react-icons/md'
 import { RiErrorWarningFill } from 'react-icons/ri'
-import Loader from '../../../components/Loader'
+import Loader from '../../components/Loader'
 
 function randomStr(length) {
 	let result = ""
