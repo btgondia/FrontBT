@@ -112,7 +112,8 @@ export const server = ["https://api.btgondia.com", "https://dev.btgondia.com/api
 		: 1 // * for local env (for local server)
 ]
 
-export let Version = 422 // ? increment version count for each deployment rather than each count
+export let Version = 423 // ? increment version count for each deployment rather than each count
+export let addtionalInfo = 'FT0247f63'
 
 function App() {
 	const [userType, setUserType] = useState(sessionStorage.getItem("userType"))

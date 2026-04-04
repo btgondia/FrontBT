@@ -8,7 +8,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import MenuIcon from "@mui/icons-material/Menu";
 import axios from "axios";
 import { refreshDb } from "../Apis/functions";
-import { Version } from "../App";
+import { addtionalInfo, Version } from "../App";
 import { MdLogout } from "react-icons/md";
 import Prompt from "../components/Prompt";
 
@@ -195,11 +195,15 @@ const Main = () => {
             style={{
               position: "fixed",
               bottom: "60px",
-              right: "20vw",
-              fontSize: "20px",
+              right: "10px",
+              fontSize: "18px",
+              textAlign:'right',
+              display:'flex',
+              flexDirection:'column'
             }}
           >
             Version {Version}.{localStorage.getItem("IDBVersion")}
+            <small style={{opacity:.5,fontSize:11}}>{addtionalInfo}</small>
           </div>
 
           <button

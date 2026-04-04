@@ -10,7 +10,7 @@ import AssessmentIcon from "@mui/icons-material/Assessment"
 import AddIcon from "@mui/icons-material/Add"
 import { useLocation } from "react-router-dom"
 import context from "../context/context"
-import { Version } from "../App"
+import { addtionalInfo, Version } from "../App"
 import MobileOrderSequence from "./MobileOrderSequence"
 import ImportInvoices from "./ImportInvoices"
 
@@ -501,6 +501,8 @@ const Sidebar = ({ setCollectionTags, allAmountValue }) => {
 				)}
 				<div style={{ position: "absolute", bottom: "5px", left: "25px" }}>
 					<b>v{Version}</b>
+					<br />
+					<small>{addtionalInfo}</small>
 				</div>
 			</div>
 		</>

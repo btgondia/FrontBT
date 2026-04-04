@@ -328,7 +328,7 @@ const OrderAssembly = () => {
 			const num = o?.invoice_number || o?.order_uuid || ""
 			const total = getOrderGrand(o)
 			list.push({
-				number: String(num).replace(/^B-?/i, ""),
+				number: String(num),
 				total
 			})
 			out.set(cid, list)
@@ -478,7 +478,7 @@ const OrderAssembly = () => {
 		const counterOrders = ordersByCounter.get(counterId)
 		const hasUnProcessedItems = counterOrders?.some((i) => {
 			const order = orders.find((o) =>
-				[o.invoice_number.split("-")[1], o.order_uuid].includes(i.number.toString())
+				[o.invoice_number, o.order_uuid].includes(i.number.toString())
 			)
 
 			return order?.item_details?.some(
@@ -1185,7 +1185,7 @@ const OrderAssembly = () => {
 														<div className='crate-orders'>
 															{chips.map((o) => (
 																<span key={o.number} className='chip'>
-																	B-{o.number} • ₹{Math.round(o.total)}
+																	{o.number} • ₹{Math.round(o.total)}
 																</span>
 															))}
 														</div>
@@ -1443,7 +1443,7 @@ const OrderAssembly = () => {
 													<span className='crate-orders'>
 														{chips.map((o) => (
 															<span key={o.number} className='chip'>
-																(B-{o.number} ₹{Math.round(o.total)})
+																({o.number} ₹{Math.round(o.total)})
 															</span>
 														))}
 													</span>
